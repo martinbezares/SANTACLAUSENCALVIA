@@ -1,0 +1,7 @@
+{
+  "name": "Santa en Calvià · Visita Privada a Domicilio",
+  "description": "Reserva la visita privada de Papá Noel y su duende a su casa en Calvià (Mallorca) para Nochebuena y Navidad. Experiencia mágica personalizada para toda la familia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

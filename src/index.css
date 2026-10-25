@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --font-cinzel: 'Cinzel', serif;
+  --font-playfair: 'Playfair Display', serif;
+  --font-script: 'Great Vibes', cursive;
+  --font-handwriting: 'Caveat', cursive;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+
+  --color-santa-red: #8A0F1A;
+  --color-santa-crimson: #A61C24;
+  --color-santa-gold: #D4AF37;
+  --color-santa-darkgold: #A37920;
+  --color-santa-cream: #FDFBF4;
+  --color-santa-parchment: #F9F4E8;
+  --color-santa-forest: #133E26;
+}
+
+.font-cinzel {
+  font-family: var(--font-cinzel);
+}
+
+.font-playfair {
+  font-family: var(--font-playfair);
+}
+
+.font-script {
+  font-family: var(--font-script);
+}
+
+.font-handwriting {
+  font-family: var(--font-handwriting);
+}
+
+.ornate-border {
+  border: 3px double #D4AF37;
+  box-shadow: inset 0 0 12px rgba(212, 175, 55, 0.25);
+}
+
+.text-shadow-gold {
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.25), 0 0 8px rgba(212, 175, 55, 0.6);
+}
+
+.text-shadow-red {
+  text-shadow: 2px 2px 4px rgba(60, 5, 10, 0.4);
+}
+
+.gold-shimmer {
+  background: linear-gradient(135deg, #FFE898 0%, #D4AF37 50%, #9E741A 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.5s infinite ease-in-out;
+}
+
