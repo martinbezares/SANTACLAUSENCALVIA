@@ -1,6 +1,6 @@
 import React from 'react';
-import { Check, Sparkles, Clock, Calendar, Users, MapPin, ExternalLink } from 'lucide-react';
-import { PACKAGES, STRIPE_CHECKOUT_URLS } from '../data/santaData';
+import { Check, Sparkles, Clock, Calendar, Users, MapPin } from 'lucide-react';
+import { PACKAGES } from '../data/santaData';
 import { Language, PackageTier } from '../types';
 import { translations } from '../utils/i18n';
 
@@ -106,28 +106,16 @@ export const PackagesSection: React.FC<PackagesSectionProps> = ({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <a
-                    href="https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02"
-                    target="_top"
-                    rel="noopener noreferrer"
-                    className="w-full py-3 px-4 rounded-xl font-extrabold text-xs sm:text-sm shadow-md bg-emerald-700 hover:bg-emerald-800 text-white transition flex items-center justify-center gap-2 cursor-pointer text-center"
-                  >
-                    <Calendar className="w-4 h-4 text-amber-300" />
-                    <span>
-                      {language === 'es' ? 'Reservar y Pagar 6 Dic (79€)' : 'Book & Pay Dec 6th (79€)'}
-                    </span>
-                    <ExternalLink className="w-3.5 h-3.5 text-emerald-200" />
-                  </a>
-
-                  <button
-                    type="button"
-                    onClick={() => onSelectPackage(elfoPackage)}
-                    className="w-full py-1 text-[11px] font-semibold text-emerald-900 hover:underline cursor-pointer text-center"
-                  >
-                    {language === 'es' ? 'o enviar datos de ruta primero' : 'or send route details first'}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onSelectPackage(elfoPackage)}
+                  className="w-full py-3.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm shadow-md bg-emerald-700 hover:bg-emerald-800 text-white transition flex items-center justify-center gap-2 cursor-pointer text-center"
+                >
+                  <Calendar className="w-4 h-4 text-amber-300" />
+                  <span>
+                    {language === 'es' ? 'Reservar 6 de Diciembre (79€)' : 'Book Dec 6th (79€)'}
+                  </span>
+                </button>
               </div>
             </div>
           </div>
@@ -227,28 +215,18 @@ export const PackagesSection: React.FC<PackagesSectionProps> = ({
                     </ul>
                   </div>
 
-                  <div className="p-6 sm:p-7 pt-0 space-y-2">
-                    <a
-                      href={pkg.stripeCheckoutUrl || STRIPE_CHECKOUT_URLS[pkg.id as keyof typeof STRIPE_CHECKOUT_URLS]}
-                      target="_top"
-                      rel="noopener noreferrer"
-                      className={`w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm shadow transition flex items-center justify-center gap-2 cursor-pointer text-center ${
+                  <div className="p-6 sm:p-7 pt-0">
+                    <button
+                      type="button"
+                      onClick={() => onSelectPackage(pkg)}
+                      className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm shadow transition flex items-center justify-center gap-2 cursor-pointer text-center ${
                         isPopular
                           ? 'bg-[#8A0F1A] hover:bg-[#A61C24] text-white shadow-red-950/20'
                           : 'bg-stone-900 hover:bg-stone-800 text-white'
                       }`}
                     >
                       <Sparkles className="w-4 h-4 text-amber-300" />
-                      <span>{language === 'es' ? 'Reservar y Pagar' : 'Book & Pay'} ({pkg.price}€)</span>
-                      <ExternalLink className="w-3.5 h-3.5 opacity-80" />
-                    </a>
-
-                    <button
-                      type="button"
-                      onClick={() => onSelectPackage(pkg)}
-                      className="w-full py-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900 hover:underline cursor-pointer text-center"
-                    >
-                      {language === 'es' ? 'o enviar datos de ruta primero' : 'or send route details first'}
+                      <span>{t.selectPlan} ({pkg.price}€)</span>
                     </button>
                   </div>
                 </div>
