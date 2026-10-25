@@ -249,6 +249,13 @@ export const TIME_WINDOW_OPTIONS: TimeWindowOption[] = [
   },
 ];
 
+export const STRIPE_CHECKOUT_URLS = {
+  'elfo-6dic': 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
+  'santa-elfo-20-22': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
+  'santa-elfo-23': 'https://buy.stripe.com/test_6oU00l5Jg88D1lq4r5a7C04',
+  'santa-elfo-24': 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
+} as const;
+
 export const VISIT_DATE_CHOICES = [
   {
     id: 'date-6-dec',
@@ -260,6 +267,7 @@ export const VISIT_DATE_CHOICES = [
     descEs: 'Visita de Santa y su Elfo (79€)',
     descEn: 'Santa & his Elf Visit (79€)',
     cutoffTime: '21:30',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
   },
   {
     id: 'date-20-dec',
@@ -271,6 +279,7 @@ export const VISIT_DATE_CHOICES = [
     descEs: 'Visita de Santa y su Elfo (79€)',
     descEn: 'Santa & his Elf Visit (79€)',
     cutoffTime: '21:30',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
   },
   {
     id: 'date-21-dec',
@@ -282,6 +291,7 @@ export const VISIT_DATE_CHOICES = [
     descEs: 'Visita de Santa y su Elfo (79€)',
     descEn: 'Santa & his Elf Visit (79€)',
     cutoffTime: '21:30',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
   },
   {
     id: 'date-22-dec',
@@ -293,6 +303,7 @@ export const VISIT_DATE_CHOICES = [
     descEs: 'Visita de Santa y su Elfo (79€)',
     descEn: 'Santa & his Elf Visit (79€)',
     cutoffTime: '21:30',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
   },
   {
     id: 'date-23-dec',
@@ -304,6 +315,7 @@ export const VISIT_DATE_CHOICES = [
     descEs: 'Visita de Santa y su Elfo (89€)',
     descEn: 'Santa & his Elf Visit (89€)',
     cutoffTime: '21:30',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_6oU00l5Jg88D1lq4r5a7C04',
   },
   {
     id: 'date-24-dec',
@@ -316,6 +328,7 @@ export const VISIT_DATE_CHOICES = [
     descEn: 'Santa & his Elf Visit (109€ · Only until 19:00)',
     cutoffTime: '19:00',
     is24Dec: true,
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
   },
 ];
 
@@ -334,6 +347,7 @@ export const PACKAGES: PackageTier[] = [
     price: 79,
     cast: 'Santa Claus + su Elfo Ayudante',
     castEn: 'Santa Claus + his Official Elf',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
     features: [
       'Visita especial de Santa Claus acompañado de su fiel Elfo a su hogar',
       'Máximo 3 niños por visita (atención cercana y personalizada)',
@@ -367,6 +381,7 @@ export const PACKAGES: PackageTier[] = [
     price: 79,
     cast: 'Santa Claus + su Elfo Ayudante',
     castEn: 'Santa Claus + his Official Elf',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
     features: [
       'Llegada triunfal de Santa Claus acompañado de su fiel Elfo',
       'Máximo 3 niños por visita (lectura dedicada para cada uno)',
@@ -400,6 +415,7 @@ export const PACKAGES: PackageTier[] = [
     price: 89,
     cast: 'Santa Claus + su Elfo Ayudante',
     castEn: 'Santa Claus + his Official Elf',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_6oU00l5Jg88D1lq4r5a7C04',
     features: [
       'Llegada especial en la víspera de Nochebuena',
       'Máximo 3 niños por visita (atención exclusiva e íntima)',
@@ -436,6 +452,7 @@ export const PACKAGES: PackageTier[] = [
     popular: true,
     cast: 'Santa Claus + su Elfo Ayudante',
     castEn: 'Santa Claus + his Official Elf',
+    stripeCheckoutUrl: 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
     features: [
       'La máxima magia en el día más esperado del año: 24 de Diciembre',
       'Máximo 3 niños por visita (atención individualizada sin prisas)',

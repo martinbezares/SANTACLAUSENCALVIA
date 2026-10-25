@@ -14,6 +14,7 @@ import {
   Car,
   Info,
   Loader2,
+  ExternalLink,
 } from 'lucide-react';
 
 const GooglePayIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 shrink-0' }) => (
@@ -45,6 +46,7 @@ import {
   TRAVEL_BUFFER_MIN,
   SLOT_CYCLE_MIN,
   TIME_WINDOW_OPTIONS,
+  STRIPE_CHECKOUT_URLS,
 } from '../data/santaData';
 import { Booking, Language, PackageTier, PreferredTimeWindow } from '../types';
 import { translations } from '../utils/i18n';
@@ -144,62 +146,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return language === 'es' ? opt.labelEs : opt.labelEn;
   };
 
+  const currentStripeUrl =
+    (selectedDateChoice as any).stripeCheckoutUrl ||
+    STRIPE_CHECKOUT_URLS[currentPkg.id as keyof typeof STRIPE_CHECKOUT_URLS] ||
+    'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02';
+
   const handleGPayCheckout = async (fromForm = false) => {
     setIsProcessingGPay(true);
     playSoftSparkleSound();
-
-    // Verify browser PaymentRequest integration with Google Pay
-    if (typeof window !== 'undefined' && 'PaymentRequest' in window) {
-      try {
-        const methodData = [
-          {
-            supportedMethods: 'https://google.com/pay',
-            data: {
-              environment: 'TEST',
-              apiVersion: 2,
-              apiVersionMinor: 0,
-              merchantInfo: {
-                merchantName: 'Santa Claus Calvià',
-              },
-              allowedPaymentMethods: [
-                {
-                  type: 'CARD',
-                  parameters: {
-                    allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
-                    allowedCardNetworks: ['MASTERCARD', 'VISA'],
-                  },
-                  tokenizationSpecification: {
-                    type: 'PAYMENT_GATEWAY',
-                    parameters: {
-                      gateway: 'example',
-                      gatewayMerchantId: 'exampleGatewayMerchantId',
-                    },
-                  },
-                },
-              ],
-            },
-          },
-        ];
-        const details = {
-          total: {
-            label: `Visita Santa Claus y su Elfo (${selectedDateChoice.dayLabelEs})`,
-            amount: { currency: 'EUR', value: selectedDateChoice.price.toString() },
-          },
-        };
-        const request = new (window as any).PaymentRequest(methodData, details);
-        if (request && typeof request.canMakePayment === 'function') {
-          const canPay = await request.canMakePayment().catch(() => false);
-          if (canPay) {
-            const response = await request.show().catch(() => null);
-            if (response) {
-              await response.complete('success').catch(() => {});
-            }
-          }
-        }
-      } catch {
-        // Fallback safely in sandboxed iframe environment
-      }
-    }
 
     setTimeout(() => {
       setIsProcessingGPay(false);
@@ -212,17 +166,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       const newBooking: Booking = {
         id: `req_${Date.now()}`,
         code,
-        fullName: fromForm && fullName.trim() ? fullName.trim() : (language === 'es' ? 'Familia Calvià (Pago G-Pay)' : 'Calvià Family (G-Pay)'),
+        fullName: fromForm && fullName.trim() ? fullName.trim() : (language === 'es' ? 'Familia Calvià (Pago Stripe/G-Pay)' : 'Calvià Family (Stripe/G-Pay)'),
         phone: fromForm && phone.trim() ? phone.trim() : '+34 661 532237',
-        email: fromForm && email.trim() ? email.trim() : 'solicitud-gpay@cliente.com',
+        email: fromForm && email.trim() ? email.trim() : 'solicitud-stripe@cliente.com',
         dateKey: selectedDateChoice.dateKey,
         dateLabel: `${dayLabel} · ${currentPkgName}`,
         timeSlot: timeLabel,
         preferredTimeWindow: selectedTimeWindow,
         zone: locationArea,
-        address: fromForm && address.trim() ? address.trim() : (language === 'es' ? 'Dirección confirmada por WhatsApp (G-Pay)' : 'Address via WhatsApp (G-Pay)'),
+        address: fromForm && address.trim() ? address.trim() : (language === 'es' ? 'Dirección confirmada por WhatsApp (Stripe)' : 'Address via WhatsApp (Stripe)'),
         kidsInfo: fromForm && kidsInfo.trim() ? kidsInfo.trim() : (language === 'es' ? 'Los pequeños de la casa (máx. 3 niños)' : 'Children at home (max. 3 kids)'),
-        notes: specialGiftNotes || (language === 'es' ? 'Pago verificado por G-Pay' : 'Payment verified via G-Pay'),
+        notes: specialGiftNotes || (language === 'es' ? 'Pago tramitado mediante Stripe / G-Pay' : 'Payment processed via Stripe / G-Pay'),
         packageId: currentPkg.id,
         packageName: currentPkgName,
         price: selectedDateChoice.price,
@@ -230,12 +184,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         isExpress: !fromForm,
         status: 'solicitud',
         routeOrder: zoneObj?.routeOrder || 99,
-        paymentMethod: 'G-Pay',
+        paymentMethod: 'G-Pay (Stripe)',
       };
 
       setConfirmedBooking(newBooking);
       onBookingSuccess(newBooking);
-    }, 650);
+
+      // Redirigir directamente al enlace de Stripe del paquete seleccionado
+      if (typeof window !== 'undefined') {
+        if (window.top && window.top !== window) {
+          try {
+            window.top.location.href = currentStripeUrl;
+          } catch {
+            window.location.href = currentStripeUrl;
+          }
+        } else {
+          window.location.href = currentStripeUrl;
+        }
+      }
+    }, 400);
   };
 
   const handleFormSubmission = (e: React.FormEvent) => {
@@ -329,31 +296,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </span>
               </div>
 
-              <button
-                type="button"
-                disabled={isProcessingGPay}
+              <a
+                href={currentStripeUrl}
+                target="_top"
+                rel="noopener noreferrer"
                 onClick={() => handleGPayCheckout(false)}
-                className="w-full bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-300 hover:border-amber-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-xs transition transform active:scale-[0.99] cursor-pointer"
+                className="w-full bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-300 hover:border-amber-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-xs transition transform active:scale-[0.99] cursor-pointer text-center"
               >
-                {isProcessingGPay ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
-                    <span>{language === 'es' ? 'Conectando con G-Pay...' : 'Connecting to G-Pay...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <GooglePayIcon />
-                    <span className="font-extrabold text-stone-900 tracking-wide text-sm sm:text-base">G Pay</span>
-                    <span className="text-stone-600 font-medium">
-                      {language === 'es' ? '· Pago exprés oficial con G-Pay (1-Clic)' : '· Official 1-Click G-Pay Checkout'}
-                    </span>
-                  </>
-                )}
-              </button>
+                <GooglePayIcon />
+                <span className="font-extrabold text-stone-900 tracking-wide text-sm sm:text-base">G Pay</span>
+                <span className="text-stone-700 font-medium">
+                  {language === 'es' ? '· Pago exprés con Stripe / G-Pay' : '· Express Stripe / G-Pay Checkout'} ({selectedDateChoice.price}€)
+                </span>
+                <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
+              </a>
               <p className="text-[10px] text-stone-500 text-center mt-1.5">
                 {language === 'es'
-                  ? 'G-Pay (Google Pay) es el único método de pago admitido en esta plataforma.'
-                  : 'G-Pay (Google Pay) is the sole accepted payment method on this platform.'}
+                  ? 'Redirige a la pasarela oficial y segura de Stripe (compatible con G-Pay y tarjeta).'
+                  : 'Redirects to the official, secure Stripe checkout (supporting G-Pay and cards).'}
               </p>
             </div>
 
@@ -655,24 +615,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </span>
               </div>
 
-              {/* Payment Method Badge: G-PAY ONLY */}
+              {/* Payment Method Badge: Stripe & G-PAY */}
               <div className="p-3.5 bg-gradient-to-r from-amber-50 to-stone-50 border-2 border-amber-300 rounded-xl space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <GooglePayIcon />
                     <span className="font-bold text-xs text-stone-900 font-cinzel">
-                      {language === 'es' ? 'Pago con G-Pay (Google Pay)' : 'Payment with G-Pay (Google Pay)'}
+                      {language === 'es' ? 'Pago Seguro con Stripe (G-Pay y Tarjeta)' : 'Secure Stripe Checkout (G-Pay & Card)'}
                     </span>
                   </div>
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
                     <Check className="w-3 h-3 text-emerald-600" />
-                    {language === 'es' ? 'Habilitado' : 'Enabled'}
+                    {language === 'es' ? 'Enlace Oficial' : 'Official Link'}
                   </span>
                 </div>
                 <p className="text-[11px] text-stone-600 leading-tight">
                   {language === 'es'
-                    ? 'Único método de pago admitido. Pago oficial verificado y procesado mediante G-Pay.'
-                    : 'Exclusive payment method. Official payment verified and processed through G-Pay.'}
+                    ? 'Al enviar se guardarán tus datos de visita y serás redirigido a la pasarela cifrada de Stripe para formalizar el abono.'
+                    : 'Upon submitting, your visit details will be recorded and you will be directed to Stripe to complete payment.'}
                 </p>
               </div>
 
@@ -685,14 +645,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 {isProcessingGPay ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                    <span>{language === 'es' ? 'Conectando con G-Pay...' : 'Connecting to G-Pay...'}</span>
+                    <span>{language === 'es' ? 'Redirigiendo a Stripe...' : 'Redirecting to Stripe...'}</span>
                   </>
                 ) : (
                   <>
                     <GooglePayIcon />
                     <span>
-                      {language === 'es' ? 'Solicitar y Pagar con G-Pay' : 'Submit & Pay with G-Pay'} · {selectedDateChoice.price}€
+                      {language === 'es' ? 'Enviar Solicitud y Pagar en Stripe' : 'Submit & Pay on Stripe'} · {selectedDateChoice.price}€
                     </span>
+                    <ExternalLink className="w-4 h-4 text-amber-300" />
                   </>
                 )}
               </button>
@@ -752,9 +713,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <span className="font-bold text-stone-600">{language === 'es' ? 'Método de Pago:' : 'Payment Method:'}</span>
                 <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                   <Check className="w-3 h-3 text-emerald-600" />
-                  G-Pay (Google Pay) · {language === 'es' ? 'Habilitado' : 'Enabled'}
+                  Stripe / G-Pay · {language === 'es' ? 'Enlace Oficial' : 'Official Link'}
                 </span>
               </div>
+            </div>
+
+            {/* Direct Stripe Payment Action */}
+            <div className="pt-1">
+              <a
+                href={currentStripeUrl}
+                target="_top"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center gap-2 bg-[#8A0F1A] hover:bg-[#A61C24] text-white font-extrabold py-3.5 px-5 rounded-xl text-xs sm:text-sm shadow-md shadow-red-950/20 transition cursor-pointer text-center"
+              >
+                <GooglePayIcon />
+                <span>
+                  {language === 'es' ? 'Ir al Pago Seguro en Stripe' : 'Proceed to Secure Stripe Checkout'} ({confirmedBooking.price}€)
+                </span>
+                <ExternalLink className="w-4 h-4 text-amber-300" />
+              </a>
             </div>
 
             <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3 text-left text-xs max-w-md mx-auto space-y-1">

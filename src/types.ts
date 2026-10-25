@@ -69,6 +69,7 @@ export interface PackageTier {
   featuresEn?: string[];
   cast: string;
   castEn?: string;
+  stripeCheckoutUrl?: string;
 }
 
 export interface FaqItem {
