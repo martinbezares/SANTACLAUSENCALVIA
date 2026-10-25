@@ -11,7 +11,7 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({ language, onOpenBooking }) => {
   const t = translations[language];
 
-  const whatsappLink = `https://wa.me/34600000000?text=${encodeURIComponent(
+  const whatsappLink = `https://wa.me/34661532237?text=${encodeURIComponent(
     t.whatsappMessage
   )}`;
 
@@ -83,12 +83,14 @@ export const Footer: React.FC<FooterProps> = ({ language, onOpenBooking }) => {
                   rel="noopener noreferrer"
                   className="hover:text-emerald-300 transition"
                 >
-                  WhatsApp: +34 600 000 000
+                  WhatsApp: +34 661 532237
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>+34 971 00 00 00</span>
+                <a href="tel:+34661532237" className="hover:text-amber-300 transition">
+                  +34 661 532237
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-amber-400 shrink-0" />

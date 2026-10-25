@@ -16,7 +16,7 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ language }) => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  const whatsappLink = `https://wa.me/34600000000?text=${encodeURIComponent(
+  const whatsappLink = `https://wa.me/34661532237?text=${encodeURIComponent(
     language === 'es'
       ? '¡Hola! Tengo una duda sobre la visita de Santa y su Elfo en Calvià.'
       : 'Hello! I have a question regarding the Santa & his Elf visit in Calvià.'

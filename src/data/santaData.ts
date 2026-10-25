@@ -336,6 +336,7 @@ export const PACKAGES: PackageTier[] = [
     castEn: 'Santa Claus + his Official Elf',
     features: [
       'Visita especial de Santa Claus acompañado de su fiel Elfo a su hogar',
+      'Máximo 3 niños por visita (atención cercana y personalizada)',
       'Recogida mágica y en mano de las cartas de los niños para el Polo Norte',
       'Lectura de la lista de buen comportamiento y consejos alegres de Santa',
       'Cuentos sobre los preparativos navideños y el taller de juguetes de Laponia',
@@ -344,6 +345,7 @@ export const PACKAGES: PackageTier[] = [
     ],
     featuresEn: [
       'Special home visit by Santa Claus accompanied by his trusty Elf helper',
+      'Maximum 3 children per visit (intimate, personalized attention)',
       'Magical hand-to-hand collection of children’s letters for the North Pole',
       'Reading from the Good Behavior List and joyful festive advice from Santa',
       'Delightful tales from Santa’s Lapland toy workshop and reindeer stables',
@@ -367,6 +369,7 @@ export const PACKAGES: PackageTier[] = [
     castEn: 'Santa Claus + his Official Elf',
     features: [
       'Llegada triunfal de Santa Claus acompañado de su fiel Elfo',
+      'Máximo 3 niños por visita (lectura dedicada para cada uno)',
       'Campanilla de plata en la puerta y saludo por el nombre de los niños',
       'Lectura del Gran Libro Dorado con anécdotas y logros familiares',
       'Entrega ceremonial de regalos sacados del gran saco mágico',
@@ -375,6 +378,7 @@ export const PACKAGES: PackageTier[] = [
     ],
     featuresEn: [
       'Triumphant arrival of Santa Claus accompanied by his faithful Elf',
+      'Maximum 3 children per visit (dedicated reading for each child)',
       'Silver sleigh bell doorstep chime and personal greeting by children\'s names',
       'Reading from the Golden Book with family milestones and cherished anecdotes',
       'Ceremonial gift presentation directly pulled from Santa\'s giant red sack',
@@ -398,6 +402,7 @@ export const PACKAGES: PackageTier[] = [
     castEn: 'Santa Claus + his Official Elf',
     features: [
       'Llegada especial en la víspera de Nochebuena',
+      'Máximo 3 niños por visita (atención exclusiva e íntima)',
       'Santa Claus y su Elfo con vestuario de alta calidad',
       'Lectura personalizada del Gran Libro Dorado para cada niño',
       'Entrega de regalos secretos coordinada con los padres',
@@ -407,6 +412,7 @@ export const PACKAGES: PackageTier[] = [
     ],
     featuresEn: [
       'Special Christmas Eve Eve arrival filled with excitement and anticipation',
+      'Maximum 3 children per visit (exclusive intimate attention)',
       'Santa Claus & his Elf dressed in movie-grade, exquisite holiday attire',
       'Personalized reading from the Golden Book customized for each child',
       'Secret gift unboxing and presentation smoothly coordinated with parents',
@@ -432,6 +438,7 @@ export const PACKAGES: PackageTier[] = [
     castEn: 'Santa Claus + his Official Elf',
     features: [
       'La máxima magia en el día más esperado del año: 24 de Diciembre',
+      'Máximo 3 niños por visita (atención individualizada sin prisas)',
       'Horarios exclusivos durante la tarde (último pase antes de las 19:00)',
       'Papá Noel y su Duende Elfo en su llegada más emocionante',
       'Entrega de los regalos principales de Navidad en mano',
@@ -441,11 +448,12 @@ export const PACKAGES: PackageTier[] = [
     ],
     featuresEn: [
       'Peak Christmas magic on the most anticipated day: December 24th',
+      'Maximum 3 children per visit (unhurried individual attention)',
       'Exclusive afternoon slots (final visit concludes before 19:00)',
       'Santa Claus & his Elf Helper in their most thrilling, heartwarming arrival',
-      'Personal hand-to-hand delivery of your main Christmas gifts',
-      'Solemn, touching reading from Santa’s Golden Book of achievements',
-      'Unforgettable family portraits captured by your holiday tree',
+      'Grand ceremonial hand-to-hand delivery of your main Christmas gifts',
+      'Solemn, touching reading from Santa’s Golden Book with custom milestones',
+      'Unforgettable Christmas tree family photoshoot and holiday keepsake',
       'Travel 100% included across Calvià and Andratx',
     ],
   },
@@ -485,8 +493,8 @@ export const FAQS: FaqItem[] = [
   {
     question: '¿Pueden juntarse varios niños o primos en la misma visita?',
     questionEn: 'Can siblings, cousins, or friends join together in the same visit?',
-    answer: '¡Por supuesto! Nuestras visitas están pensadas para reunir a hermanos, primos y amigos de la familia, dedicando atención y mención personalizada en el Libro a cada uno.',
-    answerEn: 'Absolutely! Our visits are designed to gather brothers, sisters, cousins, and close family friends together, dedicating personal attention and special Golden Book notes to every single child.',
+    answer: '¡Por supuesto! Pueden juntarse hermanos, primos o amigos, con un máximo de 3 niños por visita. Este límite nos permite garantizar que en los 25 minutos de visita Papá Noel y su fiel Elfo puedan dedicarle tiempo de máxima calidad, atención exclusiva y una mención personalizada en el Gran Libro Dorado a cada uno de ellos sin prisas.',
+    answerEn: 'Absolutely! Siblings, cousins, or friends can join together, with a maximum of 3 children per visit. This limit ensures that during the 25-minute visit, Santa Claus and his faithful Elf can provide highest-quality unhurried attention, personal dialogue, and custom Golden Book notes for each child.',
   },
   {
     question: '¿Por qué el cliente no puede elegir una hora exacta para la visita?',
@@ -499,6 +507,12 @@ export const FAQS: FaqItem[] = [
     questionEn: 'How are visit times and driving schedules calculated?',
     answer: 'Cada visita dura 25 minutos completos en su hogar con Santa y su Elfo. Entre cada visita reservamos un lapso mínimo garantizado de 15 minutos para nuestro desplazamiento en coche por Calvià (ciclo de 40 min). Se aplica a todos los días de pases de Santa Claus: de 17:00 a 19:00 cubrimos Palmanova, Magaluf y Son Ferrer; y a partir del último pase de la tarde (19:25), la ruta continúa por Santa Ponsa y Andratx, permitiendo atender hasta 7 visitas por jornada (y 3 visitas exclusivas el 24 de Diciembre hasta las 19:00) con puntualidad garantizada.',
     answerEn: 'Every visit lasts a full 25 minutes inside your home with Santa and his Elf. Between visits, we strictly reserve a minimum 15-minute car driving buffer across Calvià (40-minute cycle). This applies to all Santa Claus visit days: from 17:00 to 19:00 we cover Palmanova, Magaluf, and Son Ferrer; and from the final afternoon pass (19:25), the route proceeds through Santa Ponsa and Andratx, fulfilling up to 7 visits per day (and 3 exclusive visits on Christmas Eve until 19:00) with guaranteed punctuality.',
+  },
+  {
+    question: '¿Qué métodos de pago están habilitados?',
+    questionEn: 'Which payment methods are enabled?',
+    answer: 'El único método de pago aceptado y habilitado en la plataforma es G-Pay (Google Pay). Permite realizar el pago de tu visita de forma inmediata, 100% segura y con total comodidad desde tu móvil o navegador con tu tarjeta vinculada.',
+    answerEn: 'The only payment method accepted and enabled on this platform is G-Pay (Google Pay). It allows instant, 100% secure, and seamless payment for your visit directly from your phone or browser using your linked card.',
   },
 ];
 

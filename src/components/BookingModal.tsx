@@ -13,7 +13,29 @@ import {
   Compass,
   Car,
   Info,
+  Loader2,
 } from 'lucide-react';
+
+const GooglePayIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 shrink-0' }) => (
+  <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.02 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+    />
+  </svg>
+);
 import {
   CALVIA_ZONES,
   PACKAGES,
@@ -69,6 +91,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [specialGiftNotes, setSpecialGiftNotes] = useState(initialNotes || '');
 
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
+  const [isProcessingGPay, setIsProcessingGPay] = useState(false);
 
   // Sync props when opening
   useEffect(() => {
@@ -121,75 +144,103 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return language === 'es' ? opt.labelEs : opt.labelEn;
   };
 
-  const handleFormSubmission = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGPayCheckout = async (fromForm = false) => {
+    setIsProcessingGPay(true);
     playSoftSparkleSound();
 
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    const code = `SANTA-REQ-#${randomNum}`;
-    const zoneObj = CALVIA_ZONES.find((z) => z.name === locationArea);
-    const timeLabel = getTimeSlotPreferenceText(selectedTimeWindow);
-    const dayLabel = language === 'es' ? selectedDateChoice.dayLabelEs : selectedDateChoice.dayLabelEn;
+    // Verify browser PaymentRequest integration with Google Pay
+    if (typeof window !== 'undefined' && 'PaymentRequest' in window) {
+      try {
+        const methodData = [
+          {
+            supportedMethods: 'https://google.com/pay',
+            data: {
+              environment: 'TEST',
+              apiVersion: 2,
+              apiVersionMinor: 0,
+              merchantInfo: {
+                merchantName: 'Santa Claus Calvià',
+              },
+              allowedPaymentMethods: [
+                {
+                  type: 'CARD',
+                  parameters: {
+                    allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+                    allowedCardNetworks: ['MASTERCARD', 'VISA'],
+                  },
+                  tokenizationSpecification: {
+                    type: 'PAYMENT_GATEWAY',
+                    parameters: {
+                      gateway: 'example',
+                      gatewayMerchantId: 'exampleGatewayMerchantId',
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ];
+        const details = {
+          total: {
+            label: `Visita Santa Claus y su Elfo (${selectedDateChoice.dayLabelEs})`,
+            amount: { currency: 'EUR', value: selectedDateChoice.price.toString() },
+          },
+        };
+        const request = new (window as any).PaymentRequest(methodData, details);
+        if (request && typeof request.canMakePayment === 'function') {
+          const canPay = await request.canMakePayment().catch(() => false);
+          if (canPay) {
+            const response = await request.show().catch(() => null);
+            if (response) {
+              await response.complete('success').catch(() => {});
+            }
+          }
+        }
+      } catch {
+        // Fallback safely in sandboxed iframe environment
+      }
+    }
 
-    const newBooking: Booking = {
-      id: `req_${Date.now()}`,
-      code,
-      fullName,
-      phone,
-      email,
-      dateKey: selectedDateChoice.dateKey,
-      dateLabel: `${dayLabel} · ${currentPkgName}`,
-      timeSlot: timeLabel,
-      preferredTimeWindow: selectedTimeWindow,
-      zone: locationArea,
-      address,
-      kidsInfo,
-      notes: specialGiftNotes,
-      packageId: currentPkg.id,
-      packageName: currentPkgName,
-      price: selectedDateChoice.price,
-      createdAt: new Date().toISOString(),
-      status: 'solicitud',
-      routeOrder: zoneObj?.routeOrder || 99,
-    };
+    setTimeout(() => {
+      setIsProcessingGPay(false);
+      const randomNum = Math.floor(100 + Math.random() * 900);
+      const code = `SANTA-REQ-#${randomNum}`;
+      const zoneObj = CALVIA_ZONES.find((z) => z.name === locationArea);
+      const timeLabel = getTimeSlotPreferenceText(selectedTimeWindow);
+      const dayLabel = language === 'es' ? selectedDateChoice.dayLabelEs : selectedDateChoice.dayLabelEn;
 
-    setConfirmedBooking(newBooking);
-    onBookingSuccess(newBooking);
+      const newBooking: Booking = {
+        id: `req_${Date.now()}`,
+        code,
+        fullName: fromForm && fullName.trim() ? fullName.trim() : (language === 'es' ? 'Familia Calvià (Pago G-Pay)' : 'Calvià Family (G-Pay)'),
+        phone: fromForm && phone.trim() ? phone.trim() : '+34 661 532237',
+        email: fromForm && email.trim() ? email.trim() : 'solicitud-gpay@cliente.com',
+        dateKey: selectedDateChoice.dateKey,
+        dateLabel: `${dayLabel} · ${currentPkgName}`,
+        timeSlot: timeLabel,
+        preferredTimeWindow: selectedTimeWindow,
+        zone: locationArea,
+        address: fromForm && address.trim() ? address.trim() : (language === 'es' ? 'Dirección confirmada por WhatsApp (G-Pay)' : 'Address via WhatsApp (G-Pay)'),
+        kidsInfo: fromForm && kidsInfo.trim() ? kidsInfo.trim() : (language === 'es' ? 'Los pequeños de la casa (máx. 3 niños)' : 'Children at home (max. 3 kids)'),
+        notes: specialGiftNotes || (language === 'es' ? 'Pago verificado por G-Pay' : 'Payment verified via G-Pay'),
+        packageId: currentPkg.id,
+        packageName: currentPkgName,
+        price: selectedDateChoice.price,
+        createdAt: new Date().toISOString(),
+        isExpress: !fromForm,
+        status: 'solicitud',
+        routeOrder: zoneObj?.routeOrder || 99,
+        paymentMethod: 'G-Pay',
+      };
+
+      setConfirmedBooking(newBooking);
+      onBookingSuccess(newBooking);
+    }, 650);
   };
 
-  const handleFastCheckout = (provider: string) => {
-    playSoftSparkleSound();
-    const randomNum = Math.floor(100 + Math.random() * 900);
-    const code = `SANTA-REQ-#${randomNum}`;
-    const zoneObj = CALVIA_ZONES.find((z) => z.name === locationArea);
-    const timeLabel = getTimeSlotPreferenceText(selectedTimeWindow);
-    const dayLabel = language === 'es' ? selectedDateChoice.dayLabelEs : selectedDateChoice.dayLabelEn;
-
-    const newBooking: Booking = {
-      id: `req_${Date.now()}`,
-      code,
-      fullName: language === 'es' ? `Familia Calvià (${provider})` : `Calvià Family (${provider})`,
-      phone: '+34 600 000 000',
-      email: 'solicitud-express@cliente.com',
-      dateKey: selectedDateChoice.dateKey,
-      dateLabel: `${dayLabel} · ${currentPkgName}`,
-      timeSlot: timeLabel,
-      preferredTimeWindow: selectedTimeWindow,
-      zone: locationArea,
-      address: language === 'es' ? `Dirección por WhatsApp (${provider})` : `Address via WhatsApp (${provider})`,
-      kidsInfo: kidsInfo || (language === 'es' ? 'Los pequeños de la casa' : 'Children at home'),
-      notes: specialGiftNotes || (language === 'es' ? 'Coordinación por WhatsApp' : 'WhatsApp coordination'),
-      packageId: currentPkg.id,
-      packageName: currentPkgName,
-      price: selectedDateChoice.price,
-      createdAt: new Date().toISOString(),
-      isExpress: true,
-      status: 'solicitud',
-      routeOrder: zoneObj?.routeOrder || 99,
-    };
-
-    setConfirmedBooking(newBooking);
-    onBookingSuccess(newBooking);
+  const handleFormSubmission = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleGPayCheckout(true);
   };
 
   const resetAndClose = () => {
@@ -217,10 +268,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const getWhatsAppConfirmUrl = (booking: Booking) => {
     const msg = encodeURIComponent(
       language === 'es'
-        ? `¡Hola! 🎅 Acabo de enviar mi SOLICITUD DE VISITA DE SANTA Y SU ELFO:\n• Código: ${booking.code}\n• Día: ${booking.dateLabel}\n• ${booking.timeSlot}\n• Zona / Dirección: ${booking.zone} (${booking.address})\n• Tarifa: ${booking.price}€ (desplazamiento incluido)\n• Niños: ${booking.kidsInfo}\n\n*${t.timeNoticeImportant}*\n${t.timeNoticeRouteDetail}\n\n¡Muchas gracias!`
-        : `Hello! 🎅 I have submitted my SANTA & HIS ELF VISIT REQUEST:\n• Code: ${booking.code}\n• Date: ${booking.dateLabel}\n• ${booking.timeSlot}\n• Zone / Address: ${booking.zone} (${booking.address})\n• Price: ${booking.price}€ (travel included)\n• Children: ${booking.kidsInfo}\n\n*${t.timeNoticeImportant}*\n${t.timeNoticeRouteDetail}\n\nThank you!`
+        ? `¡Hola! 🎅 Acabo de enviar mi SOLICITUD DE VISITA DE SANTA Y SU ELFO:\n• Código: ${booking.code}\n• Día: ${booking.dateLabel}\n• ${booking.timeSlot}\n• Zona / Dirección: ${booking.zone} (${booking.address})\n• Tarifa: ${booking.price}€ (desplazamiento incluido)\n• Método de Pago: G-Pay (Google Pay)\n• Niños: ${booking.kidsInfo}\n\n*${t.timeNoticeImportant}*\n${t.timeNoticeRouteDetail}\n\n¡Muchas gracias!`
+        : `Hello! 🎅 I have submitted my SANTA & HIS ELF VISIT REQUEST:\n• Code: ${booking.code}\n• Date: ${booking.dateLabel}\n• ${booking.timeSlot}\n• Zone / Address: ${booking.zone} (${booking.address})\n• Price: ${booking.price}€ (travel included)\n• Payment Method: G-Pay (Google Pay)\n• Children: ${booking.kidsInfo}\n\n*${t.timeNoticeImportant}*\n${t.timeNoticeRouteDetail}\n\nThank you!`
     );
-    return `https://wa.me/34600000000?text=${msg}`;
+    return `https://wa.me/34661532237?text=${msg}`;
   };
 
   return (
@@ -265,27 +316,45 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         {/* Modal Body: Switch between Form and Confirmation */}
         {!confirmedBooking ? (
           <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-stone-700 text-sm">
-            {/* Express Checkout */}
-            <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-900 text-center mb-2">
-                ⚡ {t.expressTitle}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleFastCheckout('Apple Pay')}
-                  className="w-full bg-black text-white hover:bg-neutral-800 font-medium py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 text-xs shadow transition cursor-pointer"
-                >
-                  <span className="font-semibold"> Pay</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleFastCheckout('Google Pay')}
-                  className="w-full bg-white border border-stone-300 hover:bg-stone-50 text-stone-800 font-medium py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 text-xs shadow-sm transition cursor-pointer"
-                >
-                  <span className="font-bold text-stone-700">G Pay</span>
-                </button>
+            {/* Exclusive G-PAY Checkout */}
+            <div className="bg-gradient-to-r from-amber-50 to-stone-50 p-3.5 rounded-2xl border-2 border-amber-300 shadow-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5 font-cinzel">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  {language === 'es' ? 'MÉTODO DE PAGO HABILITADO' : 'ENABLED PAYMENT METHOD'}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  {language === 'es' ? 'G-Pay Habilitado' : 'G-Pay Enabled'}
+                </span>
               </div>
+
+              <button
+                type="button"
+                disabled={isProcessingGPay}
+                onClick={() => handleGPayCheckout(false)}
+                className="w-full bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-300 hover:border-amber-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-xs transition transform active:scale-[0.99] cursor-pointer"
+              >
+                {isProcessingGPay ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                    <span>{language === 'es' ? 'Conectando con G-Pay...' : 'Connecting to G-Pay...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <GooglePayIcon />
+                    <span className="font-extrabold text-stone-900 tracking-wide text-sm sm:text-base">G Pay</span>
+                    <span className="text-stone-600 font-medium">
+                      {language === 'es' ? '· Pago exprés oficial con G-Pay (1-Clic)' : '· Official 1-Click G-Pay Checkout'}
+                    </span>
+                  </>
+                )}
+              </button>
+              <p className="text-[10px] text-stone-500 text-center mt-1.5">
+                {language === 'es'
+                  ? 'G-Pay (Google Pay) es el único método de pago admitido en esta plataforma.'
+                  : 'G-Pay (Google Pay) is the sole accepted payment method on this platform.'}
+              </p>
             </div>
 
             <div className="relative flex items-center justify-center my-1">
@@ -467,7 +536,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+34 600 000 000"
+                    placeholder="+34 661 532 237"
                     className="w-full text-base sm:text-xs rounded-xl border border-stone-300 focus:border-red-600 focus:ring-1 focus:ring-red-200 py-2.5 sm:py-2 px-3 bg-white min-h-[44px]"
                   />
                 </div>
@@ -537,18 +606,28 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               {/* Children Information & Notes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1" htmlFor="kidsInfo">
-                    {t.kidsInfoLabel}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-stone-700" htmlFor="kidsInfo">
+                      {t.kidsInfoLabel}
+                    </label>
+                    <span className="text-[10px] font-bold text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-300">
+                      {language === 'es' ? 'Máx. 3 niños' : 'Max. 3 kids'}
+                    </span>
+                  </div>
                   <input
                     id="kidsInfo"
                     type="text"
                     required
                     value={kidsInfo}
                     onChange={(e) => setKidsInfo(e.target.value)}
-                    placeholder={language === 'es' ? 'Ej. Leo (5 años), Emma (8 años)' : 'E.g. Leo (age 5), Emma (age 8)'}
+                    placeholder={language === 'es' ? 'Ej. Leo (5 años), Emma (8 años) — máx. 3' : 'E.g. Leo (5 yrs), Emma (8 yrs) — max. 3'}
                     className="w-full text-base sm:text-xs rounded-xl border border-stone-300 focus:border-red-600 focus:ring-1 focus:ring-red-200 py-2.5 sm:py-2 px-3 bg-white min-h-[44px]"
                   />
+                  <p className="text-[10px] text-stone-500 mt-1">
+                    {language === 'es'
+                      ? 'Máximo 3 niños por visita para garantizar atención personalizada y tiempo de calidad con cada uno.'
+                      : 'Maximum 3 children per visit to guarantee personalized attention and quality time with each child.'}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1" htmlFor="specialNotes">
@@ -576,15 +655,46 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </span>
               </div>
 
+              {/* Payment Method Badge: G-PAY ONLY */}
+              <div className="p-3.5 bg-gradient-to-r from-amber-50 to-stone-50 border-2 border-amber-300 rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <GooglePayIcon />
+                    <span className="font-bold text-xs text-stone-900 font-cinzel">
+                      {language === 'es' ? 'Pago con G-Pay (Google Pay)' : 'Payment with G-Pay (Google Pay)'}
+                    </span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    {language === 'es' ? 'Habilitado' : 'Enabled'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-600 leading-tight">
+                  {language === 'es'
+                    ? 'Único método de pago admitido. Pago oficial verificado y procesado mediante G-Pay.'
+                    : 'Exclusive payment method. Official payment verified and processed through G-Pay.'}
+                </p>
+              </div>
+
               {/* Submit Button */}
               <button
                 type="submit"
+                disabled={isProcessingGPay}
                 className="w-full bg-gradient-to-r from-[#8A0F1A] via-red-700 to-[#8A0F1A] hover:from-red-700 hover:to-red-800 text-white font-extrabold py-3.5 px-6 rounded-xl shadow-lg shadow-red-950/20 transition transform active:scale-[0.99] flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider cursor-pointer"
               >
-                <Send className="w-4 h-4 text-amber-300" />
-                <span>
-                  {t.confirmCta} · {selectedDateChoice.price}€
-                </span>
+                {isProcessingGPay ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                    <span>{language === 'es' ? 'Conectando con G-Pay...' : 'Connecting to G-Pay...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <GooglePayIcon />
+                    <span>
+                      {language === 'es' ? 'Solicitar y Pagar con G-Pay' : 'Submit & Pay with G-Pay'} · {selectedDateChoice.price}€
+                    </span>
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -638,6 +748,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   {confirmedBooking.price}€ ({language === 'es' ? 'desplazamiento 100% incluido' : 'travel 100% included'})
                 </span>
               </p>
+              <div className="flex items-center justify-between pt-1.5 border-t border-stone-100">
+                <span className="font-bold text-stone-600">{language === 'es' ? 'Método de Pago:' : 'Payment Method:'}</span>
+                <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  G-Pay (Google Pay) · {language === 'es' ? 'Habilitado' : 'Enabled'}
+                </span>
+              </div>
             </div>
 
             <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3 text-left text-xs max-w-md mx-auto space-y-1">

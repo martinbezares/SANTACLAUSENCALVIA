@@ -94,12 +94,20 @@ export const MagicVoucherModal: React.FC<MagicVoucherModalProps> = ({
                   {booking.kidsInfo}
                 </span>
               </div>
-              <div className="flex justify-between items-baseline">
+              <div className="flex justify-between items-baseline border-b border-amber-200/80 pb-1.5">
                 <span className="font-bold text-stone-600">
                   {language === 'es' ? 'Plan Seleccionado:' : 'Selected Plan:'}
                 </span>
                 <span className="font-bold text-amber-900">
                   {booking.packageName} ({booking.price}€)
+                </span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="font-bold text-stone-600">
+                  {language === 'es' ? 'Método de Pago:' : 'Payment Method:'}
+                </span>
+                <span className="font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded text-[11px] border border-emerald-300">
+                  G-Pay (Google Pay) ✓ {language === 'es' ? 'Habilitado' : 'Enabled'}
                 </span>
               </div>
               <p className="text-[10px] text-stone-500 italic mt-2 text-center">

@@ -96,9 +96,13 @@ export const PackagesSection: React.FC<PackagesSectionProps> = ({
                       {language === 'es' ? 'por visita · desplazamiento incluido' : 'per visit · travel included'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-center gap-2 text-xs text-stone-600 mb-4">
+                  <div className="flex items-center justify-center gap-2 text-xs text-stone-600 mb-1">
                     <Users className="w-3.5 h-3.5 text-amber-700" />
                     <span>{language === 'es' ? elfoPackage.cast : (elfoPackage.castEn || elfoPackage.cast)}</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-100/90 py-1 px-3 rounded-full mb-4 border border-amber-300">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                    <span>{language === 'es' ? 'Máximo 3 niños por visita' : 'Maximum 3 children per visit'}</span>
                   </div>
                 </div>
 
@@ -193,6 +197,10 @@ export const PackagesSection: React.FC<PackagesSectionProps> = ({
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-amber-700 shrink-0" />
                         <span>{pkgDuration}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-amber-900 font-semibold pt-0.5 border-t border-amber-200/60">
+                        <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span>{language === 'es' ? 'Máximo 3 niños por visita' : 'Max. 3 children per visit'}</span>
                       </div>
                     </div>
 

@@ -29,7 +29,7 @@ export const FlyerHero: React.FC<FlyerHeroProps> = ({
   const HERO_IMAGE_SRC =
     '/assets/aistudio/WhatsApp_Image_2026-10-22_at_10.30.02_bd6d1d26.jpeg';
 
-  const whatsappLink = `https://wa.me/34600000000?text=${encodeURIComponent(
+  const whatsappLink = `https://wa.me/34661532237?text=${encodeURIComponent(
     t.whatsappMessage
   )}`;
 

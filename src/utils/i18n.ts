@@ -49,7 +49,7 @@ export const translations = {
     
     // Santa book customizer
     bookSectionTitle: 'El Gran Libro Dorado de Papá Noel',
-    bookSectionDesc: 'Personaliza los secretos que Papá Noel mencionará a tus pequeños durante la visita:',
+    bookSectionDesc: 'Personaliza los secretos que Papá Noel mencionará a tus pequeños durante la visita (máximo 3 niños por visita):',
     childNameLabel: 'Nombre del Niño/a',
     childAgeLabel: 'Edad',
     achievementsLabel: 'Cosas buenas que hizo este año (deportes, colegio, bondad)',
@@ -83,7 +83,8 @@ export const translations = {
     routeTimeExplain: 'El cliente no puede elegir los horarios fijos de la visita: nos desplazamos en coche con un margen mínimo de 15 minutos entre visitas de 25 minutos. Todos los días organizamos la ruta: de 17:00 a 19:00 Santa Claus estará en Palmanova, Magaluf y Son Ferrer; y a partir del último pase (19:25), la ruta continuará en Santa Ponsa y Andratx. Te confirmaremos tu hora exacta una vez organizada la hoja de ruta del día.',
     locationAreaLabel: 'Zona en Calvià / Andratx *',
     addressLabel: 'Dirección Exacta o Urbanización *',
-    kidsInfoLabel: 'Nombres y Edades de los Niños *',
+    kidsInfoLabel: 'Nombres y Edades de los Niños (Máx. 3 niños) *',
+    kidsMaxNotice: 'Máximo 3 niños por visita para garantizar atención personalizada y tiempo de calidad con cada uno.',
     specialNotesLabel: 'Detalles secretos para Papá Noel (Opcional)',
     confirmCta: 'Enviar Solicitud de Visita',
     guaranteeText: 'Garantía de Puntualidad y Magia: Actores profesionales cualificados, vestuario de cine y trato cariñoso e inolvidable.',
@@ -146,7 +147,7 @@ export const translations = {
 
     // Santa book customizer
     bookSectionTitle: "Santa's Golden Secret Book",
-    bookSectionDesc: 'Personalize the special anecdotes Santa will mention to your children during the visit:',
+    bookSectionDesc: 'Personalize the special anecdotes Santa will mention to your children during the visit (maximum 3 children per visit):',
     childNameLabel: "Child's Name",
     childAgeLabel: 'Age',
     achievementsLabel: 'Great things achieved this year (sports, school, kindness)',
@@ -180,7 +181,8 @@ export const translations = {
     routeTimeExplain: 'Clients cannot pick fixed arrival times: our team travels by car with a minimum 15-minute buffer between 25-minute visits. Every day Santa’s route is organized: from 17:00 to 19:00 Santa Claus will be in Palmanova, Magaluf, and Son Ferrer; and from the last pass onwards (19:25), the route continues in Santa Ponsa and Andratx. We will confirm your exact arrival time once the day’s route is finalized.',
     locationAreaLabel: 'Calvià / Andratx Area *',
     addressLabel: 'Exact Street Address or Villa Name *',
-    kidsInfoLabel: "Children's Names and Ages *",
+    kidsInfoLabel: "Children's Names and Ages (Max. 3 children) *",
+    kidsMaxNotice: 'Maximum 3 children per visit to ensure personalized attention and dedicated quality time with each child.',
     specialNotesLabel: 'Secret Details for Santa (Optional)',
     confirmCta: 'Submit Santa Visit Request',
     guaranteeText: 'Punctuality & Magic Guarantee: High-caliber actors, movie-grade costumes, and warm, gentle manners.',

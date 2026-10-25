@@ -18,7 +18,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 }) => {
   const t = translations[language];
 
-  const whatsappLink = `https://wa.me/34600000000?text=${encodeURIComponent(
+  const whatsappLink = `https://wa.me/34661532237?text=${encodeURIComponent(
     t.whatsappMessage
   )}`;
 

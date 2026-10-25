@@ -38,6 +38,7 @@ export interface Booking {
   assignedTime?: string;
   assignedSlot?: ScheduleSlot;
   routeOrder?: number;
+  paymentMethod?: string;
 }
 
 export interface ZoneInfo {

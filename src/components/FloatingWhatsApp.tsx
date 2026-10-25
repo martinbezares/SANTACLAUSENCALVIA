@@ -10,7 +10,7 @@ interface FloatingWhatsAppProps {
 export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ language }) => {
   const t = translations[language];
 
-  const whatsappUrl = `https://wa.me/34600000000?text=${encodeURIComponent(
+  const whatsappUrl = `https://wa.me/34661532237?text=${encodeURIComponent(
     t.whatsappMessage
   )}`;
 

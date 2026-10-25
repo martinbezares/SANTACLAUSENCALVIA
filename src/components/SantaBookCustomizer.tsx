@@ -93,6 +93,14 @@ export const SantaBookCustomizer: React.FC<SantaBookCustomizerProps> = ({
           {/* Left Form: Inputs */}
           <div className="lg:col-span-6 bg-[#F9F4E8] rounded-2xl p-6 sm:p-7 border border-amber-300 shadow-sm flex flex-col justify-between">
             <div className="space-y-4">
+              <div className="flex items-center justify-between pb-1 border-b border-amber-200/80">
+                <span className="text-xs font-cinzel font-bold text-[#8A0F1A]">
+                  {language === 'es' ? 'Ficha Secreta del Libro Dorado' : 'Golden Book Secret Profile'}
+                </span>
+                <span className="text-[10px] font-bold text-amber-900 bg-amber-100/90 px-2.5 py-0.5 rounded-full border border-amber-300">
+                  {language === 'es' ? 'Máximo 3 niños por visita' : 'Max. 3 children per visit'}
+                </span>
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-stone-700 mb-1">

@@ -178,7 +178,7 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
         ? `¡Hola Familia ${booking.fullName}! 🎅🚗\nYa hemos organizado la ruta geográfica de Santa para el ${booking.dateLabel}.\n\nTu visita está programada ${timeText} en ${booking.zone} (${booking.address}).\n\n⏱️ Duración de la visita: 25 minutos con Santa y su Elfo.\n🚗 Desplazamiento en coche: Contamos con 15 minutos de margen para garantizar puntualidad absoluta.\n\nPor favor tened los regalos o cartas listos para entregarlos discretamente cuando lleguemos a la calle. ¡Nos vemos muy pronto!`
         : `Hello ${booking.fullName} Family! 🎅🚗\nWe have organized Santa's geographical route for ${booking.dateLabel}.\n\nYour visit is scheduled ${timeText} at ${booking.zone} (${booking.address}).\n\n⏱️ Visit duration: 25 minutes with Santa and his Elf.\n🚗 Travel buffer: We strictly allocate 15 minutes of car transit to ensure complete punctuality.\n\nPlease have the gifts or letters ready to hand over discreetly when we arrive on your street. See you very soon!`
     );
-    return `https://wa.me/${booking.phone.replace(/[^0-9]/g, '') || '34600000000'}?text=${msg}`;
+    return `https://wa.me/${booking.phone.replace(/[^0-9]/g, '') || '34661532237'}?text=${msg}`;
   };
 
   return (
