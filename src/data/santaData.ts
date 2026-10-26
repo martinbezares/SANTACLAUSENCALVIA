@@ -249,6 +249,45 @@ export const TIME_WINDOW_OPTIONS: TimeWindowOption[] = [
   },
 ];
 
+export const MAX_VISITS_PER_DAY = 7;
+
+export const FULL_SCHEDULE_MSG_DEC24_ES = 'Lo sentimos mucho Santa ya tiene la agenda llena este año, nos vemos el año que viene, FELIZ NAVIDAD!!!';
+export const FULL_SCHEDULE_MSG_DEC24_EN = "We are very sorry, Santa's schedule is completely full this year, see you next year, MERRY CHRISTMAS!!!";
+
+export const FULL_SCHEDULE_MSG_OTHER_ES = 'Santa tiene la agenda llena este día';
+export const FULL_SCHEDULE_MSG_OTHER_EN = "Santa's schedule is full for this day";
+
+export const DEFAULT_BOOKED_COUNTS: Record<string, number> = {
+  '2026-12-06': 5, // 2 cupos libres
+  '2026-12-20': 4, // 3 cupos libres
+  '2026-12-21': 6, // 1 cupo libre
+  '2026-12-22': 5, // 2 cupos libres
+  '2026-12-23': 6, // 1 cupo libre
+  '2026-12-24': 6, // 1 cupo libre (a 1 visita de llenarse)
+};
+
+export const QUOTAS_STORAGE_KEY = 'santa_calvia_day_quotas_v2';
+
+export const getStoredDayBookedCounts = (): Record<string, number> => {
+  try {
+    const raw = localStorage.getItem(QUOTAS_STORAGE_KEY);
+    if (raw) {
+      return { ...DEFAULT_BOOKED_COUNTS, ...JSON.parse(raw) };
+    }
+  } catch (e) {
+    // fallback
+  }
+  return { ...DEFAULT_BOOKED_COUNTS };
+};
+
+export const saveStoredDayBookedCounts = (counts: Record<string, number>): void => {
+  try {
+    localStorage.setItem(QUOTAS_STORAGE_KEY, JSON.stringify(counts));
+  } catch (e) {
+    // fallback
+  }
+};
+
 export const STRIPE_CHECKOUT_URLS = {
   'elfo-6dic': 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
   'santa-elfo-20-22': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
@@ -524,6 +563,12 @@ export const FAQS: FaqItem[] = [
     questionEn: 'How are visit times and driving schedules calculated?',
     answer: 'Cada visita dura 25 minutos completos en su hogar con Santa y su Elfo. Entre cada visita reservamos un lapso mínimo garantizado de 15 minutos para nuestro desplazamiento en coche por Calvià (ciclo de 40 min). Se aplica a todos los días de pases de Santa Claus: de 17:00 a 19:00 cubrimos Palmanova, Magaluf y Son Ferrer; y a partir del último pase de la tarde (19:25), la ruta continúa por Santa Ponsa y Andratx, permitiendo atender hasta 7 visitas por jornada (y 3 visitas exclusivas el 24 de Diciembre hasta las 19:00) con puntualidad garantizada.',
     answerEn: 'Every visit lasts a full 25 minutes inside your home with Santa and his Elf. Between visits, we strictly reserve a minimum 15-minute car driving buffer across Calvià (40-minute cycle). This applies to all Santa Claus visit days: from 17:00 to 19:00 we cover Palmanova, Magaluf, and Son Ferrer; and from the final afternoon pass (19:25), the route proceeds through Santa Ponsa and Andratx, fulfilling up to 7 visits per day (and 3 exclusive visits on Christmas Eve until 19:00) with guaranteed punctuality.',
+  },
+  {
+    question: '¿Cuántas visitas se realizan como máximo cada día y qué ocurre cuando se llena el cupo?',
+    questionEn: 'How many visits are scheduled per day and what happens when capacity is reached?',
+    answer: 'Cada día de visita (6, 20, 21, 22, 23 y 24 de Diciembre) tiene un límite riguroso de 7 visitas o cupos. Esto nos permite garantizar la puntualidad absoluta en coche por Calvià y 25 minutos de magia sin prisas. Cuando se completan las 7 visitas en el formulario de reserva, para los días 6, 21, 22 y 23 aparece el mensaje «Santa tiene la agenda llena este día», y para el 24 de Diciembre aparece «Lo sentimos mucho Santa ya tiene la agenda llena este año, nos vemos el año que viene, FELIZ NAVIDAD!!!», quedando cerradas las reservas para esa fecha.',
+    answerEn: 'Each visit day (December 6, 20, 21, 22, 23, and 24) has a strict limit of 7 visits. This ensures unhurried 25-minute experiences and punctual routing across Calvià. When all 7 slots are filled in the booking form, for December 6, 21, 22, and 23 the message «Santa has a full schedule this day» is displayed, and for December 24th it displays «We are very sorry, Santa’s schedule is completely full this year, see you next year, MERRY CHRISTMAS!!!», closing further bookings for that date.',
   },
   {
     question: '¿Qué métodos de pago están habilitados?',

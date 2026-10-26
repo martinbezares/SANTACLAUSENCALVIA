@@ -15,6 +15,10 @@ import {
   Info,
   Loader2,
   ExternalLink,
+  AlertTriangle,
+  Lock,
+  Sliders,
+  RefreshCw,
 } from 'lucide-react';
 
 const GooglePayIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 shrink-0' }) => (
@@ -47,6 +51,14 @@ import {
   SLOT_CYCLE_MIN,
   TIME_WINDOW_OPTIONS,
   STRIPE_CHECKOUT_URLS,
+  MAX_VISITS_PER_DAY,
+  DEFAULT_BOOKED_COUNTS,
+  getStoredDayBookedCounts,
+  saveStoredDayBookedCounts,
+  FULL_SCHEDULE_MSG_DEC24_ES,
+  FULL_SCHEDULE_MSG_DEC24_EN,
+  FULL_SCHEDULE_MSG_OTHER_ES,
+  FULL_SCHEDULE_MSG_OTHER_EN,
 } from '../data/santaData';
 import { Booking, Language, PackageTier, PreferredTimeWindow } from '../types';
 import { translations } from '../utils/i18n';
@@ -95,7 +107,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
   const [isProcessingGPay, setIsProcessingGPay] = useState(false);
 
+  // Quotas state: max 7 visits per day across Calvià
+  const [dailyQuotas, setDailyQuotas] = useState<Record<string, number>>(() => getStoredDayBookedCounts());
+
   // Sync props when opening
+  useEffect(() => {
+    if (isOpen) {
+      setDailyQuotas(getStoredDayBookedCounts());
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (preselectedZone) {
       setLocationArea(preselectedZone);
@@ -133,12 +154,34 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const currentPkgName =
     language === 'es' ? currentPkg.name : (currentPkg.nameEn || currentPkg.name);
 
+  // Capacity calculations for the currently selected date
+  const bookedCountForSelectedDate = dailyQuotas[selectedDateChoice.dateKey] ?? 0;
+  const isCurrentDateFull = bookedCountForSelectedDate >= MAX_VISITS_PER_DAY;
+  const remainingSlotsForSelectedDate = Math.max(0, MAX_VISITS_PER_DAY - bookedCountForSelectedDate);
+
   const handleDateSelect = (dateId: string) => {
     setSelectedDateId(dateId);
     const match = VISIT_DATE_CHOICES.find((d) => d.id === dateId);
     if (match?.is24Dec && selectedTimeWindow === 'evening') {
       setSelectedTimeWindow('early_evening');
     }
+  };
+
+  const handleSimulateFull = (dateId: string) => {
+    const target = VISIT_DATE_CHOICES.find((d) => d.id === dateId);
+    if (!target) return;
+    const updated = {
+      ...dailyQuotas,
+      [target.dateKey]: MAX_VISITS_PER_DAY,
+    };
+    setDailyQuotas(updated);
+    saveStoredDayBookedCounts(updated);
+    setSelectedDateId(target.id);
+  };
+
+  const handleResetQuotas = () => {
+    setDailyQuotas(DEFAULT_BOOKED_COUNTS);
+    saveStoredDayBookedCounts(DEFAULT_BOOKED_COUNTS);
   };
 
   const getTimeSlotPreferenceText = (windowId: PreferredTimeWindow) => {
@@ -152,8 +195,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02';
 
   const handleGPayCheckout = async (fromForm = false) => {
+    if (isCurrentDateFull) {
+      return;
+    }
     setIsProcessingGPay(true);
     playSoftSparkleSound();
+
+    // Increment booked count for this date up to MAX_VISITS_PER_DAY (7)
+    const newCount = Math.min(MAX_VISITS_PER_DAY, (dailyQuotas[selectedDateChoice.dateKey] || 0) + 1);
+    const newQuotas = {
+      ...dailyQuotas,
+      [selectedDateChoice.dateKey]: newCount,
+    };
+    setDailyQuotas(newQuotas);
+    saveStoredDayBookedCounts(newQuotas);
 
     setTimeout(() => {
       setIsProcessingGPay(false);
@@ -283,39 +338,89 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         {/* Modal Body: Switch between Form and Confirmation */}
         {!confirmedBooking ? (
           <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-stone-700 text-sm">
-            {/* Exclusive G-PAY Checkout */}
-            <div className="bg-gradient-to-r from-amber-50 to-stone-50 p-3.5 rounded-2xl border-2 border-amber-300 shadow-xs">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5 font-cinzel">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  {language === 'es' ? 'MÉTODO DE PAGO HABILITADO' : 'ENABLED PAYMENT METHOD'}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
-                  <Check className="w-3 h-3 text-emerald-600" />
-                  {language === 'es' ? 'G-Pay Habilitado' : 'G-Pay Enabled'}
-                </span>
-              </div>
-
-              <a
-                href={currentStripeUrl}
-                target="_top"
-                rel="noopener noreferrer"
-                onClick={() => handleGPayCheckout(false)}
-                className="w-full bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-300 hover:border-amber-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-xs transition transform active:scale-[0.99] cursor-pointer text-center"
+            {/* Exclusive G-PAY Checkout or Full Capacity Banner */}
+            {isCurrentDateFull ? (
+              <div
+                className={`p-4 rounded-2xl border-2 text-center space-y-2 shadow-sm ${
+                  is24Dec
+                    ? 'bg-gradient-to-r from-[#8A0F1A] via-[#700B15] to-[#8A0F1A] border-amber-400 text-white'
+                    : 'bg-amber-50 border-amber-500 text-amber-950'
+                }`}
               >
-                <GooglePayIcon />
-                <span className="font-extrabold text-stone-900 tracking-wide text-sm sm:text-base">G Pay</span>
-                <span className="text-stone-700 font-medium">
-                  {language === 'es' ? '· Pago exprés con Stripe / G-Pay' : '· Express Stripe / G-Pay Checkout'} ({selectedDateChoice.price}€)
-                </span>
-                <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
-              </a>
-              <p className="text-[10px] text-stone-500 text-center mt-1.5">
-                {language === 'es'
-                  ? 'Redirige a la pasarela oficial y segura de Stripe (compatible con G-Pay y tarjeta).'
-                  : 'Redirects to the official, secure Stripe checkout (supporting G-Pay and cards).'}
-              </p>
-            </div>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xl">{is24Dec ? '🎅' : '📅'}</span>
+                  <span
+                    className={`text-[11px] font-extrabold uppercase tracking-wider font-cinzel ${
+                      is24Dec ? 'text-amber-300' : 'text-[#8A0F1A]'
+                    }`}
+                  >
+                    ★ {language === 'es' ? 'CUPO MÁXIMO ALCANZADO (7/7 VISITAS)' : 'MAXIMUM CAPACITY (7/7 VISITS)'} ★
+                  </span>
+                </div>
+                <p
+                  className={`font-cinzel text-sm sm:text-base font-black leading-snug ${
+                    is24Dec ? 'text-amber-300' : 'text-[#8A0F1A]'
+                  }`}
+                >
+                  {is24Dec
+                    ? language === 'es'
+                      ? FULL_SCHEDULE_MSG_DEC24_ES
+                      : FULL_SCHEDULE_MSG_DEC24_EN
+                    : language === 'es'
+                    ? FULL_SCHEDULE_MSG_OTHER_ES
+                    : FULL_SCHEDULE_MSG_OTHER_EN}
+                </p>
+                <p className={`text-[11px] font-sans ${is24Dec ? 'text-amber-100' : 'text-stone-600'}`}>
+                  {is24Dec
+                    ? language === 'es'
+                      ? 'Agenda llena para Nochebuena. Elige otra fecha disponible en la lista inferior.'
+                      : 'Schedule full for Christmas Eve. Please choose another available date below.'
+                    : language === 'es'
+                    ? 'Se han cubierto los 7 cupos máximos de visita para este día. Por favor selecciona otra fecha disponible.'
+                    : 'All 7 visit slots have been booked for this date. Please select another available date.'}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-r from-amber-50 to-stone-50 p-3.5 rounded-2xl border-2 border-amber-300 shadow-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5 font-cinzel">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    {language === 'es' ? 'MÉTODO DE PAGO HABILITADO' : 'ENABLED PAYMENT METHOD'}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                      <Check className="w-3 h-3 text-emerald-600" />
+                      {language === 'es' ? 'G-Pay Habilitado' : 'G-Pay Enabled'}
+                    </span>
+                    <span className="text-[10px] font-extrabold text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded-full border border-amber-300">
+                      {remainingSlotsForSelectedDate === 1
+                        ? (language === 'es' ? '¡Último cupo!' : '1 slot left!')
+                        : (language === 'es' ? `${remainingSlotsForSelectedDate} de 7 cupos` : `${remainingSlotsForSelectedDate} of 7 slots`)}
+                    </span>
+                  </div>
+                </div>
+
+                <a
+                  href={currentStripeUrl}
+                  target="_top"
+                  rel="noopener noreferrer"
+                  onClick={() => handleGPayCheckout(false)}
+                  className="w-full bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-300 hover:border-amber-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-xs transition transform active:scale-[0.99] cursor-pointer text-center"
+                >
+                  <GooglePayIcon />
+                  <span className="font-extrabold text-stone-900 tracking-wide text-sm sm:text-base">G Pay</span>
+                  <span className="text-stone-700 font-medium">
+                    {language === 'es' ? '· Pago exprés con Stripe / G-Pay' : '· Express Stripe / G-Pay Checkout'} ({selectedDateChoice.price}€)
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
+                </a>
+                <p className="text-[10px] text-stone-500 text-center mt-1.5">
+                  {language === 'es'
+                    ? 'Redirige a la pasarela oficial y segura de Stripe (compatible con G-Pay y tarjeta).'
+                    : 'Redirects to the official, secure Stripe checkout (supporting G-Pay and cards).'}
+                </p>
+              </div>
+            )}
 
             <div className="relative flex items-center justify-center my-1">
               <div className="border-t border-stone-300 w-full"></div>
@@ -328,20 +433,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <form onSubmit={handleFormSubmission} className="space-y-4">
               {/* 1. VISIT DATE: Choose the day */}
               <div>
-                <label className="block text-xs font-bold text-stone-800 mb-1.5">
-                  <Calendar className="w-3.5 h-3.5 inline text-amber-600 mr-1" />
-                  {t.preferredDateLabel}
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-stone-800">
+                    <Calendar className="w-3.5 h-3.5 inline text-amber-600 mr-1" />
+                    {t.preferredDateLabel}
+                  </label>
+                  <span className="text-[10px] text-stone-500 font-medium">
+                    {language === 'es' ? 'Máx. 7 visitas por día' : 'Max. 7 visits per day'}
+                  </span>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {VISIT_DATE_CHOICES.map((choice) => {
                     const isSelected = selectedDateId === choice.id;
+                    const bookedCount = dailyQuotas[choice.dateKey] ?? 0;
+                    const isFull = bookedCount >= MAX_VISITS_PER_DAY;
+                    const remaining = Math.max(0, MAX_VISITS_PER_DAY - bookedCount);
+
                     return (
                       <button
                         key={choice.id}
                         type="button"
                         onClick={() => handleDateSelect(choice.id)}
-                        className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                          isSelected
+                        className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between relative ${
+                          isFull
+                            ? isSelected
+                              ? 'bg-red-50/90 border-red-500 ring-2 ring-red-400/30'
+                              : 'bg-stone-50 border-stone-300 hover:bg-stone-100'
+                            : isSelected
                             ? 'bg-amber-100 border-amber-600 shadow-sm ring-2 ring-amber-500/20'
                             : 'bg-white border-stone-200 hover:bg-stone-50'
                         }`}
@@ -357,17 +475,88 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           </span>
                         </div>
                         <div className="mt-2 pt-1 border-t border-stone-100 flex items-center justify-between">
-                          <span className="font-cinzel text-xs font-black text-[#8A0F1A]">
+                          <span
+                            className={`font-cinzel text-xs font-black ${
+                              isFull ? 'text-stone-400 line-through' : 'text-[#8A0F1A]'
+                            }`}
+                          >
                             {choice.price}€
                           </span>
-                          {isSelected && (
-                            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                          {isFull ? (
+                            <span className="text-[9px] font-bold text-white bg-red-700 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                              <Lock className="w-2.5 h-2.5" />
+                              <span>{language === 'es' ? 'Lleno (7/7)' : 'Full (7/7)'}</span>
+                            </span>
+                          ) : remaining === 1 ? (
+                            <span className="text-[9px] font-extrabold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded-full animate-pulse">
+                              {language === 'es' ? '¡1 libre!' : '1 left!'}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                              {language === 'es' ? `${remaining} cupos` : `${remaining} slots`}
+                            </span>
                           )}
                         </div>
                       </button>
                     );
                   })}
                 </div>
+
+                {/* Highlight banner if the selected day has reached full quota (7/7) */}
+                {isCurrentDateFull && (
+                  <div
+                    className={`mt-3 p-4 sm:p-5 rounded-2xl border-2 shadow-md space-y-2 text-center animate-in fade-in duration-200 ${
+                      is24Dec
+                        ? 'bg-gradient-to-r from-[#8A0F1A] via-[#700B15] to-[#8A0F1A] text-white border-amber-400'
+                        : 'bg-amber-50 border-amber-500 text-amber-950'
+                    }`}
+                  >
+                    <div
+                      className={`w-11 h-11 mx-auto rounded-full flex items-center justify-center text-xl shadow-inner ${
+                        is24Dec
+                          ? 'bg-amber-400/20 border-2 border-amber-300'
+                          : 'bg-amber-200 border border-amber-400'
+                      }`}
+                    >
+                      {is24Dec ? '🎅' : '📅'}
+                    </div>
+                    <div
+                      className={`inline-block text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full font-cinzel ${
+                        is24Dec
+                          ? 'bg-amber-300 text-stone-900'
+                          : 'bg-[#8A0F1A] text-amber-200'
+                      }`}
+                    >
+                      ★ {is24Dec ? (language === 'es' ? 'NOCHEBUENA · 7/7 CUPOS CUBIERTOS' : 'CHRISTMAS EVE · 7/7 SLOTS FILLED') : (language === 'es' ? '7 DE 7 VISITAS RESERVADAS' : '7 OF 7 VISITS BOOKED')} ★
+                    </div>
+                    <h3
+                      className={`font-cinzel text-base sm:text-lg font-black leading-snug ${
+                        is24Dec ? 'text-amber-300' : 'text-[#8A0F1A]'
+                      }`}
+                    >
+                      {is24Dec
+                        ? language === 'es'
+                          ? FULL_SCHEDULE_MSG_DEC24_ES
+                          : FULL_SCHEDULE_MSG_DEC24_EN
+                        : language === 'es'
+                        ? FULL_SCHEDULE_MSG_OTHER_ES
+                        : FULL_SCHEDULE_MSG_OTHER_EN}
+                    </h3>
+                    <p
+                      className={`text-xs font-sans max-w-md mx-auto ${
+                        is24Dec ? 'text-amber-100' : 'text-stone-700'
+                      }`}
+                    >
+                      {is24Dec
+                        ? language === 'es'
+                          ? 'Se han reservado todas las 7 visitas permitidas para Nochebuena en Calvià y Andratx. Puedes seleccionar otra de las fechas con plazas libres.'
+                          : 'All 7 scheduled visits for Christmas Eve have been booked. Please select another date with open slots.'
+                        : language === 'es'
+                        ? 'Se han cubierto los 7 cupos máximos de visita para este día. Por favor, selecciona otra de las fechas con plazas disponibles en el selector superior.'
+                        : 'All 7 visit slots have been booked for this date. Please select another available date with free slots from above.'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* 2. PREFERRED TIME WINDOW SELECTION */}
@@ -636,28 +825,118 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </p>
               </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isProcessingGPay}
-                className="w-full bg-gradient-to-r from-[#8A0F1A] via-red-700 to-[#8A0F1A] hover:from-red-700 hover:to-red-800 text-white font-extrabold py-3.5 px-6 rounded-xl shadow-lg shadow-red-950/20 transition transform active:scale-[0.99] flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider cursor-pointer"
-              >
-                {isProcessingGPay ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                    <span>{language === 'es' ? 'Redirigiendo a Stripe...' : 'Redirecting to Stripe...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <GooglePayIcon />
+              {/* Submit Button or Full Agenda Alert Button */}
+              {isCurrentDateFull ? (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full bg-stone-300 text-stone-700 font-extrabold py-3.5 px-6 rounded-xl shadow-inner text-xs sm:text-sm uppercase tracking-wider cursor-not-allowed flex items-center justify-center gap-2 text-center"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-amber-800" />
                     <span>
-                      {language === 'es' ? 'Enviar Solicitud y Pagar en Stripe' : 'Submit & Pay on Stripe'} · {selectedDateChoice.price}€
+                      {is24Dec
+                        ? language === 'es'
+                          ? 'Agenda Llena 24 Dic · ¡Feliz Navidad!'
+                          : 'Schedule Full Dec 24 · Merry Christmas!'
+                        : language === 'es'
+                        ? 'Santa tiene la agenda llena este día'
+                        : "Santa's schedule is full for this day"}
                     </span>
-                    <ExternalLink className="w-4 h-4 text-amber-300" />
-                  </>
-                )}
-              </button>
+                  </button>
+                  <p className="text-[11px] text-red-800 text-center font-bold">
+                    {is24Dec
+                      ? language === 'es'
+                        ? FULL_SCHEDULE_MSG_DEC24_ES
+                        : FULL_SCHEDULE_MSG_DEC24_EN
+                      : language === 'es'
+                      ? '⚠️ Santa tiene la agenda llena este día (7 de 7 visitas cubiertas). Por favor, selecciona otra fecha disponible.'
+                      : "⚠️ Santa's schedule is full for this day (7 of 7 slots booked). Please select another date."}
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isProcessingGPay}
+                  className="w-full bg-gradient-to-r from-[#8A0F1A] via-red-700 to-[#8A0F1A] hover:from-red-700 hover:to-red-800 text-white font-extrabold py-3.5 px-6 rounded-xl shadow-lg shadow-red-950/20 transition transform active:scale-[0.99] flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider cursor-pointer"
+                >
+                  {isProcessingGPay ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                      <span>{language === 'es' ? 'Redirigiendo a Stripe...' : 'Redirecting to Stripe...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <GooglePayIcon />
+                      <span>
+                        {language === 'es' ? 'Enviar Solicitud y Pagar en Stripe' : 'Submit & Pay on Stripe'} · {selectedDateChoice.price}€
+                      </span>
+                      <ExternalLink className="w-4 h-4 text-amber-300" />
+                    </>
+                  )}
+                </button>
+              )}
             </form>
+
+            {/* Quick Testing & Quota Simulator (Max 7 visits per day) */}
+            <div className="pt-3 mt-4 border-t border-amber-200/80 bg-amber-50/70 p-3 rounded-2xl">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-bold text-stone-900 flex items-center gap-1.5 font-cinzel">
+                  <Sliders className="w-3.5 h-3.5 text-amber-700" />
+                  {language === 'es' ? 'Simulador de cupos (Máx. 7 visitas)' : 'Slot simulator (Max. 7 visits)'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetQuotas}
+                  className="text-stone-600 hover:text-stone-900 text-[11px] underline flex items-center gap-1 cursor-pointer font-semibold"
+                >
+                  <RefreshCw className="w-3 h-3 text-stone-500" />
+                  {language === 'es' ? 'Reiniciar cupos' : 'Reset quotas'}
+                </button>
+              </div>
+              <p className="text-[10px] text-stone-600 mb-2 leading-tight">
+                {language === 'es'
+                  ? 'Haz clic para simular que un día alcanza sus 7 visitas y comprobar los mensajes de agenda completa:'
+                  : 'Click to simulate a day reaching all 7 visits and verify the full schedule messages:'}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSimulateFull('date-24-dec')}
+                  className="text-[10px] font-bold bg-[#8A0F1A] hover:bg-red-800 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
+                >
+                  {language === 'es' ? '⚡ 24 Dic (Llenar 7/7)' : '⚡ Dec 24 (Fill 7/7)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSimulateFull('date-23-dec')}
+                  className="text-[10px] font-bold bg-amber-800 hover:bg-amber-900 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
+                >
+                  {language === 'es' ? '⚡ 23 Dic (Llenar 7/7)' : '⚡ Dec 23 (Fill 7/7)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSimulateFull('date-6-dec')}
+                  className="text-[10px] font-bold bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
+                >
+                  {language === 'es' ? '⚡ 6 Dic (Llenar 7/7)' : '⚡ Dec 6 (Fill 7/7)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSimulateFull('date-21-dec')}
+                  className="text-[10px] font-bold bg-stone-800 hover:bg-stone-900 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
+                >
+                  {language === 'es' ? '⚡ 21 Dic (Llenar 7/7)' : '⚡ Dec 21 (Fill 7/7)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSimulateFull('date-22-dec')}
+                  className="text-[10px] font-bold bg-stone-800 hover:bg-stone-900 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
+                >
+                  {language === 'es' ? '⚡ 22 Dic (Llenar 7/7)' : '⚡ Dec 22 (Fill 7/7)'}
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           /* Confirmation Success View with EXACT user-requested copy */
