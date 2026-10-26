@@ -288,67 +288,12 @@ export const saveStoredDayBookedCounts = (counts: Record<string, number>): void 
   }
 };
 
-export const DEFAULT_TEST_STRIPE_URL = 'https://buy.stripe.com/test_aFafZj9ZwcoT3ty9Lpa7C06';
-export const TEST_STRIPE_STORAGE_KEY = 'santa_calvia_custom_test_stripe_url_v2';
-
-export const getStoredTestStripeUrl = (): string => {
-  try {
-    const raw = localStorage.getItem(TEST_STRIPE_STORAGE_KEY);
-    if (raw && raw.trim().startsWith('http')) {
-      return raw.trim();
-    }
-  } catch (e) {
-    // fallback
-  }
-  return DEFAULT_TEST_STRIPE_URL;
-};
-
-export const saveStoredTestStripeUrl = (url: string): void => {
-  try {
-    localStorage.setItem(TEST_STRIPE_STORAGE_KEY, url.trim());
-  } catch (e) {
-    // fallback
-  }
-};
-
 export const STRIPE_CHECKOUT_URLS = {
   'elfo-6dic': 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
   'santa-elfo-20-22': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
   'santa-elfo-23': 'https://buy.stripe.com/test_6oU00l5Jg88D1lq4r5a7C04',
   'santa-elfo-24': 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
-  'test-checkout': DEFAULT_TEST_STRIPE_URL,
 } as const;
-
-export const TEST_PACKAGE: PackageTier = {
-  id: 'test-checkout',
-  category: 'santa-elfo',
-  name: 'Prueba de Pasarela Stripe (Test)',
-  nameEn: 'Stripe Gateway Test',
-  subtitle: 'Botón de prueba temporal para verificar la pasarela de pago',
-  subtitleEn: 'Temporary test button to verify the payment gateway',
-  dateInfo: 'Prueba Técnica (Temporal)',
-  dateInfoEn: 'Technical Test (Temporary)',
-  duration: '25 minutos',
-  durationEn: '25 minutes',
-  price: 1,
-  cast: 'Santa Claus + su Elfo Ayudante (Prueba)',
-  castEn: 'Santa Claus + his Official Elf (Test Mode)',
-  stripeCheckoutUrl: DEFAULT_TEST_STRIPE_URL,
-  features: [
-    'Mismas características completas que una reserva normal de visita',
-    'Comprobación de la pasarela oficial segura de Stripe y G-Pay',
-    'Formulario idéntico: nombre familiar, dirección en Calvià y máx. 3 niños',
-    'Redirección real a la pasarela de pago para verificar cobro',
-    'Botón temporal de comprobación técnica (se borrará después)',
-  ],
-  featuresEn: [
-    'Same complete features as a standard home visit booking',
-    'Verification of official Stripe checkout and G-Pay integration',
-    'Identical form: family name, Calvià address, and max 3 children',
-    'Real redirection to the payment gateway to test processing',
-    'Temporary technical verification button (to be deleted afterwards)',
-  ],
-};
 
 export const VISIT_DATE_CHOICES = [
   {
@@ -423,19 +368,6 @@ export const VISIT_DATE_CHOICES = [
     cutoffTime: '19:00',
     is24Dec: true,
     stripeCheckoutUrl: 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
-  },
-  {
-    id: 'date-test',
-    dateKey: '2026-12-test',
-    dayLabelEs: '🧪 Fecha Prueba (Test)',
-    dayLabelEn: '🧪 Test Date',
-    price: 1,
-    pkgId: 'test-checkout',
-    descEs: 'Prueba de Pasarela Stripe (Test)',
-    descEn: 'Stripe Gateway Test (Test)',
-    cutoffTime: '21:30',
-    isTest: true,
-    stripeCheckoutUrl: DEFAULT_TEST_STRIPE_URL,
   },
 ];
 

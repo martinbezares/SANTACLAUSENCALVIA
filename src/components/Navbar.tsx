@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, CloudSnow, Globe, Calendar, BookmarkCheck, Menu, X, ArrowRight, FlaskConical } from 'lucide-react';
+import { Bell, CloudSnow, Globe, Calendar, BookmarkCheck, Menu, X, ArrowRight } from 'lucide-react';
 import { Language } from '../types';
 import { translations } from '../utils/i18n';
 import { playJingleBellChime } from '../utils/audio';
@@ -10,7 +10,6 @@ interface NavbarProps {
   snowEnabled: boolean;
   onToggleSnow: () => void;
   onOpenBooking: (trigger: string) => void;
-  onOpenTestBooking?: () => void;
   onOpenMyBookings: () => void;
   hasStoredBookings: boolean;
 }
@@ -21,7 +20,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   snowEnabled,
   onToggleSnow,
   onOpenBooking,
-  onOpenTestBooking,
   onOpenMyBookings,
   hasStoredBookings,
 }) => {
@@ -135,19 +133,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Temporary Test Button for Stripe Checkout */}
-          {onOpenTestBooking && (
-            <button
-              type="button"
-              onClick={onOpenTestBooking}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-indigo-950 bg-indigo-100 hover:bg-indigo-200 border-2 border-indigo-400 rounded-xl transition whitespace-nowrap cursor-pointer shadow-xs min-h-[38px]"
-              title={language === 'es' ? 'Botón de prueba temporal para verificar pasarela Stripe' : 'Temporary test button for Stripe checkout'}
-            >
-              <FlaskConical className="w-3.5 h-3.5 text-indigo-700" />
-              <span>{language === 'es' ? '🧪 Test Pasarela' : '🧪 Gateway Test'}</span>
-            </button>
-          )}
-
           {/* Desktop Primary Action Button */}
           <button
             type="button"
@@ -234,25 +219,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>{t.navMyBookings}</span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-emerald-600" />
-              </button>
-            )}
-
-            {onOpenTestBooking && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenTestBooking();
-                }}
-                className="w-full text-left py-2.5 px-3 rounded-lg bg-indigo-50 text-indigo-900 border border-indigo-300 flex items-center justify-between font-bold"
-              >
-                <div className="flex items-center gap-2">
-                  <FlaskConical className="w-4 h-4 text-indigo-700" />
-                  <span>{language === 'es' ? '🧪 Probar Pasarela Stripe (Test)' : '🧪 Test Stripe Gateway'}</span>
-                </div>
-                <span className="text-[10px] font-mono bg-indigo-200 px-2 py-0.5 rounded text-indigo-900 font-bold">
-                  {language === 'es' ? 'Temporal' : 'Temp'}
-                </span>
               </button>
             )}
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Booking, Language, PackageTier } from './types';
-import { TEST_PACKAGE } from './data/santaData';
 import { SnowEffect } from './components/SnowEffect';
 import { UrgencyBanner } from './components/UrgencyBanner';
 import { Navbar } from './components/Navbar';
@@ -57,6 +56,23 @@ export default function App() {
     }
   }, [bookings]);
 
+  // Check if returning from successful Stripe checkout
+  const [paymentSuccessToast, setPaymentSuccessToast] = useState<{ code: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('payment') === 'success') {
+        const code = params.get('code') || 'SANTA';
+        setPaymentSuccessToast({ code });
+        // Clean URL without reloading
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const handleOpenBooking = (
     trigger: string,
     zone?: string,
@@ -82,14 +98,6 @@ export default function App() {
     handleOpenBooking(language === 'es' ? 'Libro Dorado de Santa' : "Santa's Golden Book");
   };
 
-  const handleOpenTestBooking = () => {
-    handleOpenBooking(
-      language === 'es' ? 'Prueba Pasarela Stripe' : 'Stripe Gateway Test',
-      'Palmanova & Son Caliu',
-      TEST_PACKAGE
-    );
-  };
-
   return (
     <div id="top" className="min-h-screen flex flex-col pb-20 md:pb-0 bg-[#FCF9F2] text-stone-800 relative selection:bg-amber-300 selection:text-red-950 font-sans">
       {/* Falling Snow Canvas */}
@@ -108,10 +116,37 @@ export default function App() {
         snowEnabled={snowEnabled}
         onToggleSnow={() => setSnowEnabled(!snowEnabled)}
         onOpenBooking={(trigger) => handleOpenBooking(trigger)}
-        onOpenTestBooking={handleOpenTestBooking}
         onOpenMyBookings={() => setIsMyBookingsOpen(true)}
         hasStoredBookings={bookings.length > 0}
       />
+
+      {/* Stripe Return Success Toast */}
+      {paymentSuccessToast && (
+        <div className="bg-emerald-700 text-white px-4 py-3 border-b-2 border-emerald-500 shadow-md flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
+          <div className="max-w-6xl mx-auto flex items-center gap-3 text-xs sm:text-sm">
+            <span className="text-xl">🎅</span>
+            <div>
+              <p className="font-cinzel font-bold text-amber-200">
+                {language === 'es'
+                  ? '¡Pago de reserva completado con éxito en Stripe!'
+                  : 'Booking payment successfully completed on Stripe!'}
+              </p>
+              <p className="text-emerald-100 text-xs">
+                {language === 'es'
+                  ? `Solicitud ${paymentSuccessToast.code} confirmada. Nos pondremos en contacto contigo por WhatsApp para coordinar la llegada.`
+                  : `Booking ${paymentSuccessToast.code} confirmed. We will reach out via WhatsApp to confirm the arrival.`}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPaymentSuccessToast(null)}
+            className="text-emerald-200 hover:text-white font-bold text-xs px-2 py-1 bg-emerald-800 rounded-lg cursor-pointer ml-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Main Content Sections */}
       <main className="flex-1">
@@ -168,30 +203,6 @@ export default function App() {
         onOpenMyBookings={() => setIsMyBookingsOpen(true)}
         hasStoredBookings={bookings.length > 0}
       />
-
-      {/* Floating Temporary Test Button for Stripe Checkout */}
-      <aside
-        aria-label={language === 'es' ? 'Botón de prueba temporal de pasarela Stripe' : 'Temporary Stripe checkout test button'}
-        className="fixed bottom-20 md:bottom-6 right-4 z-40"
-      >
-        <button
-          type="button"
-          onClick={handleOpenTestBooking}
-          className="bg-gradient-to-r from-indigo-700 to-purple-800 hover:from-indigo-800 hover:to-purple-900 text-white font-extrabold text-xs py-2.5 px-3.5 rounded-full shadow-2xl border-2 border-indigo-300 flex items-center gap-2 cursor-pointer transition transform hover:scale-105 active:scale-95"
-          title={language === 'es' ? 'Botón de prueba temporal para verificar la pasarela de pago Stripe' : 'Temporary test button to verify Stripe payment gateway'}
-        >
-          <span className="text-base">🧪</span>
-          <span className="hidden sm:inline font-cinzel tracking-wider">
-            {language === 'es' ? 'Probar Pasarela Stripe' : 'Test Stripe Gateway'}
-          </span>
-          <span className="sm:hidden font-bold">
-            {language === 'es' ? 'Test Pago' : 'Test Pay'}
-          </span>
-          <span className="text-[10px] bg-indigo-950/80 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">
-            TEST
-          </span>
-        </button>
-      </aside>
 
       {/* Modals & Drawers */}
       <BookingModal

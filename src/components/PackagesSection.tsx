@@ -1,6 +1,6 @@
 import React from 'react';
-import { Check, Sparkles, Clock, Calendar, Users, MapPin, FlaskConical } from 'lucide-react';
-import { PACKAGES, TEST_PACKAGE } from '../data/santaData';
+import { Check, Sparkles, Clock, Calendar, Users, MapPin } from 'lucide-react';
+import { PACKAGES } from '../data/santaData';
 import { Language, PackageTier } from '../types';
 import { translations } from '../utils/i18n';
 
@@ -235,36 +235,6 @@ export const PackagesSection: React.FC<PackagesSectionProps> = ({
           </div>
         </div>
 
-        {/* 3. BOTÓN Y TARJETA DE PRUEBA DE PAGO STRIPE (TEMPORAL) */}
-        <div className="mt-10 bg-gradient-to-r from-indigo-50 via-purple-50 to-amber-50 rounded-2xl border-2 border-indigo-400 p-5 sm:p-7 shadow-md relative overflow-hidden">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-5">
-            <div className="space-y-2 text-center lg:text-left">
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-indigo-900 bg-indigo-100/90 px-3 py-1 rounded-full border border-indigo-300 font-cinzel">
-                <FlaskConical className="w-3.5 h-3.5 text-indigo-700" />
-                <span>{language === 'es' ? 'BOTÓN DE PRUEBA TEMPORAL · PASARELA STRIPE' : 'TEMPORARY TEST BUTTON · STRIPE GATEWAY'}</span>
-              </div>
-              <h3 className="font-cinzel text-lg sm:text-2xl font-black text-indigo-950">
-                {language === 'es' ? 'Prueba Técnica de Pasarela de Pago' : 'Payment Gateway Technical Test'}
-              </h3>
-              <p className="text-xs sm:text-sm text-stone-700 max-w-2xl leading-relaxed">
-                {language === 'es'
-                  ? 'Botón de prueba para comprobar que la pasarela de Stripe y G-Pay funciona perfectamente. Tiene exactamente las mismas características de una reserva normal (formulario de visita en Calvià, máx. 3 niños, notas y redirección a Stripe). Se eliminará tras tu comprobación.'
-                  : 'Test button to verify that Stripe checkout and G-Pay work seamlessly. Features the exact same reservation flow (family details, Calvià address, max 3 kids, and Stripe checkout). It will be removed after testing.'}
-              </p>
-            </div>
-
-            <div className="shrink-0 flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-              <button
-                type="button"
-                onClick={() => onSelectPackage(TEST_PACKAGE)}
-                className="w-full sm:w-auto bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-800 hover:from-indigo-800 hover:to-purple-900 text-white font-extrabold text-xs sm:text-sm px-6 py-4 rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
-              >
-                <FlaskConical className="w-4 h-4 text-amber-300" />
-                <span>{language === 'es' ? 'Realizar Reserva y Pago de Prueba' : 'Execute Test Booking & Payment'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Calvià Municipality Guarantee Banner */}
         <div className="mt-12 bg-white rounded-2xl p-5 border border-amber-300/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
