@@ -19,6 +19,7 @@ import {
   Lock,
   Sliders,
   RefreshCw,
+  FlaskConical,
 } from 'lucide-react';
 
 const GooglePayIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 shrink-0' }) => (
@@ -59,6 +60,10 @@ import {
   FULL_SCHEDULE_MSG_DEC24_EN,
   FULL_SCHEDULE_MSG_OTHER_ES,
   FULL_SCHEDULE_MSG_OTHER_EN,
+  DEFAULT_TEST_STRIPE_URL,
+  getStoredTestStripeUrl,
+  saveStoredTestStripeUrl,
+  TEST_PACKAGE,
 } from '../data/santaData';
 import { Booking, Language, PackageTier, PreferredTimeWindow } from '../types';
 import { translations } from '../utils/i18n';
@@ -110,10 +115,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   // Quotas state: max 7 visits per day across Calvià
   const [dailyQuotas, setDailyQuotas] = useState<Record<string, number>>(() => getStoredDayBookedCounts());
 
+  // Test Stripe URL configuration (editable for gateway verification)
+  const [testStripeUrl, setTestStripeUrl] = useState<string>(() => getStoredTestStripeUrl());
+
   // Sync props when opening
   useEffect(() => {
     if (isOpen) {
       setDailyQuotas(getStoredDayBookedCounts());
+      setTestStripeUrl(getStoredTestStripeUrl());
     }
   }, [isOpen]);
 
@@ -125,9 +134,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   useEffect(() => {
     if (preselectedPackage) {
-      const match = VISIT_DATE_CHOICES.find((d) => d.pkgId === preselectedPackage.id);
-      if (match) {
-        setSelectedDateId(match.id);
+      if (preselectedPackage.id === 'test-checkout') {
+        setSelectedDateId('date-test');
+        if (!fullName) setFullName(language === 'es' ? 'Familia Demo (Test Pasarela)' : 'Demo Family (Gateway Test)');
+        if (!phone) setPhone('+34 661 532237');
+        if (!email) setEmail('test-pasarela@cliente.com');
+        if (!address) setAddress(language === 'es' ? 'Carrer Major 1, Palmanova (Prueba)' : 'Carrer Major 1, Palmanova (Test)');
+        if (!kidsInfo) setKidsInfo(language === 'es' ? 'Leo (5 años), Emma (8 años) — máx. 3' : 'Leo (5 yrs), Emma (8 yrs) — max. 3');
+        if (!specialGiftNotes) setSpecialGiftNotes(language === 'es' ? 'Prueba técnica para comprobar la pasarela Stripe y G-Pay' : 'Technical test to verify Stripe and G-Pay checkout');
+      } else {
+        const match = VISIT_DATE_CHOICES.find((d) => d.pkgId === preselectedPackage.id);
+        if (match) {
+          setSelectedDateId(match.id);
+        }
       }
     }
   }, [preselectedPackage]);
@@ -146,18 +165,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isTestMode = preselectedPackage?.id === 'test-checkout' || selectedDateId === 'date-test';
+
   const selectedDateChoice =
     VISIT_DATE_CHOICES.find((d) => d.id === selectedDateId) || VISIT_DATE_CHOICES[0];
   const is24Dec = !!selectedDateChoice.is24Dec;
-  const currentPkg =
-    PACKAGES.find((p) => p.id === selectedDateChoice.pkgId) || PACKAGES[0];
+  const currentPkg = isTestMode
+    ? TEST_PACKAGE
+    : (PACKAGES.find((p) => p.id === selectedDateChoice.pkgId) || PACKAGES[0]);
   const currentPkgName =
     language === 'es' ? currentPkg.name : (currentPkg.nameEn || currentPkg.name);
 
-  // Capacity calculations for the currently selected date
-  const bookedCountForSelectedDate = dailyQuotas[selectedDateChoice.dateKey] ?? 0;
-  const isCurrentDateFull = bookedCountForSelectedDate >= MAX_VISITS_PER_DAY;
-  const remainingSlotsForSelectedDate = Math.max(0, MAX_VISITS_PER_DAY - bookedCountForSelectedDate);
+  // Capacity calculations for the currently selected date (bypassed in test mode)
+  const bookedCountForSelectedDate = isTestMode ? 0 : (dailyQuotas[selectedDateChoice.dateKey] ?? 0);
+  const isCurrentDateFull = !isTestMode && bookedCountForSelectedDate >= MAX_VISITS_PER_DAY;
+  const remainingSlotsForSelectedDate = isTestMode ? 7 : Math.max(0, MAX_VISITS_PER_DAY - bookedCountForSelectedDate);
 
   const handleDateSelect = (dateId: string) => {
     setSelectedDateId(dateId);
@@ -189,10 +211,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return language === 'es' ? opt.labelEs : opt.labelEn;
   };
 
-  const currentStripeUrl =
-    (selectedDateChoice as any).stripeCheckoutUrl ||
-    STRIPE_CHECKOUT_URLS[currentPkg.id as keyof typeof STRIPE_CHECKOUT_URLS] ||
-    'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02';
+  const currentStripeUrl = isTestMode
+    ? (testStripeUrl || DEFAULT_TEST_STRIPE_URL)
+    : ((selectedDateChoice as any).stripeCheckoutUrl ||
+       STRIPE_CHECKOUT_URLS[currentPkg.id as keyof typeof STRIPE_CHECKOUT_URLS] ||
+       DEFAULT_TEST_STRIPE_URL);
 
   const handleGPayCheckout = async (fromForm = false) => {
     if (isCurrentDateFull) {
@@ -201,14 +224,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setIsProcessingGPay(true);
     playSoftSparkleSound();
 
-    // Increment booked count for this date up to MAX_VISITS_PER_DAY (7)
-    const newCount = Math.min(MAX_VISITS_PER_DAY, (dailyQuotas[selectedDateChoice.dateKey] || 0) + 1);
-    const newQuotas = {
-      ...dailyQuotas,
-      [selectedDateChoice.dateKey]: newCount,
-    };
-    setDailyQuotas(newQuotas);
-    saveStoredDayBookedCounts(newQuotas);
+    if (!isTestMode) {
+      // Increment booked count for this date up to MAX_VISITS_PER_DAY (7)
+      const newCount = Math.min(MAX_VISITS_PER_DAY, (dailyQuotas[selectedDateChoice.dateKey] || 0) + 1);
+      const newQuotas = {
+        ...dailyQuotas,
+        [selectedDateChoice.dateKey]: newCount,
+      };
+      setDailyQuotas(newQuotas);
+      saveStoredDayBookedCounts(newQuotas);
+    }
 
     setTimeout(() => {
       setIsProcessingGPay(false);
@@ -338,6 +363,57 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         {/* Modal Body: Switch between Form and Confirmation */}
         {!confirmedBooking ? (
           <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-stone-700 text-sm">
+            {/* Dedicated Test Mode Alert & Link Configurator */}
+            {isTestMode && (
+              <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 border-2 border-indigo-400 p-4 rounded-2xl text-indigo-950 space-y-2.5 shadow-sm animate-in fade-in duration-200">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider font-cinzel text-indigo-950 flex items-center gap-1.5">
+                    <FlaskConical className="w-4 h-4 text-indigo-700" />
+                    {language === 'es' ? 'MODO DE PRUEBA DE PASARELA STRIPE' : 'STRIPE GATEWAY TEST MODE'}
+                  </span>
+                  <span className="text-[10px] font-bold bg-indigo-200 text-indigo-950 px-2.5 py-0.5 rounded-full border border-indigo-300">
+                    {language === 'es' ? 'Temporal (se borrará)' : 'Temporary test'}
+                  </span>
+                </div>
+                <p className="text-xs text-stone-700 leading-relaxed">
+                  {language === 'es'
+                    ? 'Esta prueba cuenta con las mismas características que una reserva normal para comprobar la pasarela de Stripe y Google Pay. Al pulsar en el botón de pago serás redirigido al enlace oficial de prueba.'
+                    : 'This test features the exact same booking flow to verify Stripe and Google Pay checkout. Clicking payment redirects to the Stripe test link.'}
+                </p>
+                <div className="pt-2 border-t border-indigo-200/80 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-bold text-indigo-900" htmlFor="testStripeInput">
+                      {language === 'es' ? 'Enlace de Stripe configurado para la prueba:' : 'Configured Stripe test link:'}
+                    </label>
+                    <span className="text-[10px] text-stone-500 font-mono">Stripe Checkout</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      id="testStripeInput"
+                      type="url"
+                      value={testStripeUrl}
+                      onChange={(e) => {
+                        setTestStripeUrl(e.target.value);
+                        saveStoredTestStripeUrl(e.target.value);
+                      }}
+                      className="w-full text-xs font-mono bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 text-stone-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="https://buy.stripe.com/..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestStripeUrl(DEFAULT_TEST_STRIPE_URL);
+                        saveStoredTestStripeUrl(DEFAULT_TEST_STRIPE_URL);
+                      }}
+                      className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 underline whitespace-nowrap px-1 cursor-pointer"
+                    >
+                      {language === 'es' ? 'Restablecer' : 'Reset'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Exclusive G-PAY Checkout or Full Capacity Banner */}
             {isCurrentDateFull ? (
               <div
@@ -385,7 +461,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5 font-cinzel">
                     <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                    {language === 'es' ? 'MÉTODO DE PAGO HABILITADO' : 'ENABLED PAYMENT METHOD'}
+                    {isTestMode
+                      ? (language === 'es' ? 'PASARELA DE PAGO EN MODO PRUEBA' : 'PAYMENT GATEWAY TEST MODE')
+                      : (language === 'es' ? 'MÉTODO DE PAGO HABILITADO' : 'ENABLED PAYMENT METHOD')}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
@@ -393,7 +471,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       {language === 'es' ? 'G-Pay Habilitado' : 'G-Pay Enabled'}
                     </span>
                     <span className="text-[10px] font-extrabold text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded-full border border-amber-300">
-                      {remainingSlotsForSelectedDate === 1
+                      {isTestMode
+                        ? (language === 'es' ? '🧪 Test' : '🧪 Test')
+                        : remainingSlotsForSelectedDate === 1
                         ? (language === 'es' ? '¡Último cupo!' : '1 slot left!')
                         : (language === 'es' ? `${remainingSlotsForSelectedDate} de 7 cupos` : `${remainingSlotsForSelectedDate} of 7 slots`)}
                     </span>
@@ -410,7 +490,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <GooglePayIcon />
                   <span className="font-extrabold text-stone-900 tracking-wide text-sm sm:text-base">G Pay</span>
                   <span className="text-stone-700 font-medium">
-                    {language === 'es' ? '· Pago exprés con Stripe / G-Pay' : '· Express Stripe / G-Pay Checkout'} ({selectedDateChoice.price}€)
+                    {language === 'es'
+                      ? (isTestMode ? '· Probar Pago con Stripe / G-Pay (Test)' : '· Pago exprés con Stripe / G-Pay')
+                      : (isTestMode ? '· Test Stripe / G-Pay Checkout' : '· Express Stripe / G-Pay Checkout')} ({selectedDateChoice.price}€)
                   </span>
                   <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
                 </a>
@@ -858,7 +940,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <button
                   type="submit"
                   disabled={isProcessingGPay}
-                  className="w-full bg-gradient-to-r from-[#8A0F1A] via-red-700 to-[#8A0F1A] hover:from-red-700 hover:to-red-800 text-white font-extrabold py-3.5 px-6 rounded-xl shadow-lg shadow-red-950/20 transition transform active:scale-[0.99] flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider cursor-pointer"
+                  className={`w-full font-extrabold py-3.5 px-6 rounded-xl shadow-lg transition transform active:scale-[0.99] flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider cursor-pointer ${
+                    isTestMode
+                      ? 'bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-800 hover:from-indigo-800 hover:to-purple-900 text-white shadow-indigo-950/20'
+                      : 'bg-gradient-to-r from-[#8A0F1A] via-red-700 to-[#8A0F1A] hover:from-red-700 hover:to-red-800 text-white shadow-red-950/20'
+                  }`}
                 >
                   {isProcessingGPay ? (
                     <>
@@ -867,9 +953,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </>
                   ) : (
                     <>
-                      <GooglePayIcon />
+                      {isTestMode ? <FlaskConical className="w-4 h-4 text-amber-300" /> : <GooglePayIcon />}
                       <span>
-                        {language === 'es' ? 'Enviar Solicitud y Pagar en Stripe' : 'Submit & Pay on Stripe'} · {selectedDateChoice.price}€
+                        {isTestMode
+                          ? (language === 'es' ? '🧪 Enviar y Probar Pasarela Stripe (Test)' : '🧪 Submit & Test Stripe Gateway')
+                          : (language === 'es' ? 'Enviar Solicitud y Pagar en Stripe' : 'Submit & Pay on Stripe')} · {selectedDateChoice.price}€
                       </span>
                       <ExternalLink className="w-4 h-4 text-amber-300" />
                     </>

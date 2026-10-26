@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Booking, Language, PackageTier } from './types';
+import { TEST_PACKAGE } from './data/santaData';
 import { SnowEffect } from './components/SnowEffect';
 import { UrgencyBanner } from './components/UrgencyBanner';
 import { Navbar } from './components/Navbar';
@@ -81,6 +82,14 @@ export default function App() {
     handleOpenBooking(language === 'es' ? 'Libro Dorado de Santa' : "Santa's Golden Book");
   };
 
+  const handleOpenTestBooking = () => {
+    handleOpenBooking(
+      language === 'es' ? 'Prueba Pasarela Stripe' : 'Stripe Gateway Test',
+      'Palmanova & Son Caliu',
+      TEST_PACKAGE
+    );
+  };
+
   return (
     <div id="top" className="min-h-screen flex flex-col pb-20 md:pb-0 bg-[#FCF9F2] text-stone-800 relative selection:bg-amber-300 selection:text-red-950 font-sans">
       {/* Falling Snow Canvas */}
@@ -99,6 +108,7 @@ export default function App() {
         snowEnabled={snowEnabled}
         onToggleSnow={() => setSnowEnabled(!snowEnabled)}
         onOpenBooking={(trigger) => handleOpenBooking(trigger)}
+        onOpenTestBooking={handleOpenTestBooking}
         onOpenMyBookings={() => setIsMyBookingsOpen(true)}
         hasStoredBookings={bookings.length > 0}
       />
@@ -158,6 +168,30 @@ export default function App() {
         onOpenMyBookings={() => setIsMyBookingsOpen(true)}
         hasStoredBookings={bookings.length > 0}
       />
+
+      {/* Floating Temporary Test Button for Stripe Checkout */}
+      <aside
+        aria-label={language === 'es' ? 'Botón de prueba temporal de pasarela Stripe' : 'Temporary Stripe checkout test button'}
+        className="fixed bottom-20 md:bottom-6 right-4 z-40"
+      >
+        <button
+          type="button"
+          onClick={handleOpenTestBooking}
+          className="bg-gradient-to-r from-indigo-700 to-purple-800 hover:from-indigo-800 hover:to-purple-900 text-white font-extrabold text-xs py-2.5 px-3.5 rounded-full shadow-2xl border-2 border-indigo-300 flex items-center gap-2 cursor-pointer transition transform hover:scale-105 active:scale-95"
+          title={language === 'es' ? 'Botón de prueba temporal para verificar la pasarela de pago Stripe' : 'Temporary test button to verify Stripe payment gateway'}
+        >
+          <span className="text-base">🧪</span>
+          <span className="hidden sm:inline font-cinzel tracking-wider">
+            {language === 'es' ? 'Probar Pasarela Stripe' : 'Test Stripe Gateway'}
+          </span>
+          <span className="sm:hidden font-bold">
+            {language === 'es' ? 'Test Pago' : 'Test Pay'}
+          </span>
+          <span className="text-[10px] bg-indigo-950/80 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">
+            TEST
+          </span>
+        </button>
+      </aside>
 
       {/* Modals & Drawers */}
       <BookingModal
