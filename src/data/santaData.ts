@@ -266,12 +266,13 @@ export const DEFAULT_BOOKED_COUNTS: Record<string, number> = {
   '2026-12-24': 0,
 };
 
-export const QUOTAS_STORAGE_KEY = 'santa_calvia_day_quotas_v3';
+export const QUOTAS_STORAGE_KEY = 'santa_calvia_day_quotas_v4';
 
 export const getStoredDayBookedCounts = (): Record<string, number> => {
   try {
-    // Clear legacy pre-filled demo quota key if present
+    // Clear previous test/fictitious quota keys
     localStorage.removeItem('santa_calvia_day_quotas_v2');
+    localStorage.removeItem('santa_calvia_day_quotas_v3');
     const raw = localStorage.getItem(QUOTAS_STORAGE_KEY);
     if (raw) {
       return { ...DEFAULT_BOOKED_COUNTS, ...JSON.parse(raw) };

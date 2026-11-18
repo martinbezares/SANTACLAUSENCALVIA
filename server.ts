@@ -138,7 +138,10 @@ async function createStripeSession({
   }
 
   for (const [key, val] of Object.entries(metadata)) {
-    if (val) p.append(`metadata[${key}]`, String(val));
+    if (val) {
+      // Stripe metadata values are capped at 500 characters
+      p.append(`metadata[${key}]`, String(val).slice(0, 500));
+    }
   }
 
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -165,6 +168,12 @@ app.post('/api/create-checkout-session', async (req: Request, res: Response) => 
       bookingCode,
       customerEmail,
       customerName,
+      phone,
+      zone,
+      address,
+      kidsInfo,
+      notes,
+      timeSlot,
       dateKey,
       dayLabel,
       amount,
@@ -203,8 +212,16 @@ app.post('/api/create-checkout-session', async (req: Request, res: Response) => 
     const meta = {
       booking_code: cleanStr(bookingCode) || 'SANTA',
       date_key: cleanStr(dateKey),
+      day_label: cleanStr(dayLabel),
       package_id: cleanStr(packageId),
       customer_name: cleanStr(customerName),
+      phone: cleanStr(phone),
+      zone: cleanStr(zone),
+      address: cleanStr(address),
+      kids_info: cleanStr(kidsInfo),
+      notes: cleanStr(notes),
+      time_slot: cleanStr(timeSlot),
+      amount_eur: String(Number(amount) || 79),
     };
 
     const useManagedPayments = cleanStr(process.env.STRIPE_MANAGED_PAYMENTS).toLowerCase() === 'true';
@@ -330,9 +347,12 @@ app.get('/api/check-stripe', async (_req: Request, res: Response) => {
   });
 });
 
+// Cutoff timestamp to ignore test/fictitious sessions created prior to reset (2026-11-18T18:10:00Z)
+const QUOTA_RESET_EPOCH = Number(process.env.QUOTA_RESET_EPOCH) || 1795025400;
+
 /**
  * GET /api/booked-counts
- * Returns the real count of completed & paid bookings per date from Stripe
+ * Returns the real count of completed & paid bookings per date from Stripe (since QUOTA_RESET_EPOCH)
  */
 app.get('/api/booked-counts', async (_req: Request, res: Response) => {
   const counts: Record<string, number> = {
@@ -350,12 +370,15 @@ app.get('/api/booked-counts', async (_req: Request, res: Response) => {
   }
 
   try {
-    const response = await fetch('https://api.stripe.com/v1/checkout/sessions?status=complete&limit=100', {
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}`,
-        'Stripe-Version': '2025-03-31.basil',
-      },
-    });
+    const response = await fetch(
+      `https://api.stripe.com/v1/checkout/sessions?status=complete&limit=100&created[gte]=${QUOTA_RESET_EPOCH}`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}`,
+          'Stripe-Version': '2025-03-31.basil',
+        },
+      }
+    );
     const data = await response.json();
     if (response.ok && Array.isArray(data.data)) {
       for (const sess of data.data) {
@@ -368,6 +391,44 @@ app.get('/api/booked-counts', async (_req: Request, res: Response) => {
   } catch (err) {
     console.warn('Could not fetch Stripe booked counts, returning 0s:', err);
     return res.json({ counts, source: 'fallback' });
+  }
+});
+
+/**
+ * GET /api/checkout-session/:sessionId
+ * Retrieves verified Stripe session details when customer returns to the website after paying
+ */
+app.get('/api/checkout-session/:sessionId', async (req: Request, res: Response) => {
+  const sessionId = cleanStr(req.params.sessionId);
+  const key = cleanStr(STRIPE_SECRET_KEY);
+
+  if (!sessionId || !sessionId.startsWith('cs_') || !key || key.length < 10) {
+    return res.status(400).json({ error: 'Invalid session ID or Stripe not configured' });
+  }
+
+  try {
+    const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}`,
+        'Stripe-Version': '2025-03-31.basil',
+      },
+    });
+    const sess = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json({ error: sess.error?.message || 'Session not found' });
+    }
+
+    return res.json({
+      id: sess.id,
+      paymentStatus: sess.payment_status,
+      status: sess.status,
+      amountTotal: sess.amount_total ? Math.round(sess.amount_total / 100) : null,
+      currency: sess.currency,
+      customerDetails: sess.customer_details || null,
+      metadata: sess.metadata || {},
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Error retrieving Stripe session' });
   }
 });
 
