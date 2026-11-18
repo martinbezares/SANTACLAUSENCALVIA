@@ -17,8 +17,6 @@ import {
   ExternalLink,
   AlertTriangle,
   Lock,
-  Sliders,
-  RefreshCw,
 } from 'lucide-react';
 
 const GooglePayIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 shrink-0' }) => (
@@ -52,7 +50,6 @@ import {
   TIME_WINDOW_OPTIONS,
   STRIPE_CHECKOUT_URLS,
   MAX_VISITS_PER_DAY,
-  DEFAULT_BOOKED_COUNTS,
   getStoredDayBookedCounts,
   saveStoredDayBookedCounts,
   FULL_SCHEDULE_MSG_DEC24_ES,
@@ -144,6 +141,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   }, [initialKids]);
 
+  // Sync live booked counts from Stripe whenever the modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetch('/api/booked-counts')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.counts) {
+          setDailyQuotas(data.counts);
+          saveStoredDayBookedCounts(data.counts);
+        }
+      })
+      .catch(() => {
+        // ignore network error and keep current counts
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const selectedDateChoice =
@@ -166,23 +183,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   };
 
-  const handleSimulateFull = (dateId: string) => {
-    const target = VISIT_DATE_CHOICES.find((d) => d.id === dateId);
-    if (!target) return;
-    const updated = {
-      ...dailyQuotas,
-      [target.dateKey]: MAX_VISITS_PER_DAY,
-    };
-    setDailyQuotas(updated);
-    saveStoredDayBookedCounts(updated);
-    setSelectedDateId(target.id);
-  };
-
-  const handleResetQuotas = () => {
-    setDailyQuotas(DEFAULT_BOOKED_COUNTS);
-    saveStoredDayBookedCounts(DEFAULT_BOOKED_COUNTS);
-  };
-
   const getTimeSlotPreferenceText = (windowId: PreferredTimeWindow) => {
     const opt = TIME_WINDOW_OPTIONS.find((o) => o.id === windowId) || TIME_WINDOW_OPTIONS[0];
     return language === 'es' ? opt.labelEs : opt.labelEn;
@@ -199,15 +199,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
     setIsProcessingGPay(true);
     playSoftSparkleSound();
-
-    // Increment booked count for this date up to MAX_VISITS_PER_DAY (7)
-    const newCount = Math.min(MAX_VISITS_PER_DAY, (dailyQuotas[selectedDateChoice.dateKey] || 0) + 1);
-    const newQuotas = {
-      ...dailyQuotas,
-      [selectedDateChoice.dateKey]: newCount,
-    };
-    setDailyQuotas(newQuotas);
-    saveStoredDayBookedCounts(newQuotas);
 
     const randomNum = Math.floor(100 + Math.random() * 900);
     const code = `SANTA-REQ-#${randomNum}`;
@@ -918,65 +909,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               )}
             </form>
 
-            {/* Quick Testing & Quota Simulator (Max 7 visits per day) */}
-            <div className="pt-3 mt-4 border-t border-amber-200/80 bg-amber-50/70 p-3 rounded-2xl">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-bold text-stone-900 flex items-center gap-1.5 font-cinzel">
-                  <Sliders className="w-3.5 h-3.5 text-amber-700" />
-                  {language === 'es' ? 'Simulador de cupos (Máx. 7 visitas)' : 'Slot simulator (Max. 7 visits)'}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleResetQuotas}
-                  className="text-stone-600 hover:text-stone-900 text-[11px] underline flex items-center gap-1 cursor-pointer font-semibold"
-                >
-                  <RefreshCw className="w-3 h-3 text-stone-500" />
-                  {language === 'es' ? 'Reiniciar cupos' : 'Reset quotas'}
-                </button>
-              </div>
-              <p className="text-[10px] text-stone-600 mb-2 leading-tight">
-                {language === 'es'
-                  ? 'Haz clic para simular que un día alcanza sus 7 visitas y comprobar los mensajes de agenda completa:'
-                  : 'Click to simulate a day reaching all 7 visits and verify the full schedule messages:'}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleSimulateFull('date-24-dec')}
-                  className="text-[10px] font-bold bg-[#8A0F1A] hover:bg-red-800 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
-                >
-                  {language === 'es' ? '⚡ 24 Dic (Llenar 7/7)' : '⚡ Dec 24 (Fill 7/7)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSimulateFull('date-23-dec')}
-                  className="text-[10px] font-bold bg-amber-800 hover:bg-amber-900 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
-                >
-                  {language === 'es' ? '⚡ 23 Dic (Llenar 7/7)' : '⚡ Dec 23 (Fill 7/7)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSimulateFull('date-6-dec')}
-                  className="text-[10px] font-bold bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
-                >
-                  {language === 'es' ? '⚡ 6 Dic (Llenar 7/7)' : '⚡ Dec 6 (Fill 7/7)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSimulateFull('date-21-dec')}
-                  className="text-[10px] font-bold bg-stone-800 hover:bg-stone-900 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
-                >
-                  {language === 'es' ? '⚡ 21 Dic (Llenar 7/7)' : '⚡ Dec 21 (Fill 7/7)'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSimulateFull('date-22-dec')}
-                  className="text-[10px] font-bold bg-stone-800 hover:bg-stone-900 text-white rounded-lg px-2.5 py-1 shadow-xs transition cursor-pointer"
-                >
-                  {language === 'es' ? '⚡ 22 Dic (Llenar 7/7)' : '⚡ Dec 22 (Fill 7/7)'}
-                </button>
-              </div>
-            </div>
           </div>
         ) : (
           /* Confirmation Success View with EXACT user-requested copy */

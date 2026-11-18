@@ -190,7 +190,7 @@ app.post('/api/create-checkout-session', async (req: Request, res: Response) => 
     const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
     const baseUrl = cleanStr(process.env.APP_URL) || `${protocol}://${host}`;
 
-    const successUrl = `${baseUrl}/?payment=success&code=${encodeURIComponent(bookingCode || 'SANTA')}&session_id={CHECKOUT_SESSION_ID}`;
+    const successUrl = `${baseUrl}/?payment=success&code=${encodeURIComponent(bookingCode || 'SANTA')}&dateKey=${encodeURIComponent(dateKey || '')}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/?payment=cancelled`;
 
     // Resolve price ID by requested ID, or packageId, or dateKey
@@ -328,6 +328,47 @@ app.get('/api/check-stripe', async (_req: Request, res: Response) => {
     stripeVersion: '2025-03-31.basil',
     results,
   });
+});
+
+/**
+ * GET /api/booked-counts
+ * Returns the real count of completed & paid bookings per date from Stripe
+ */
+app.get('/api/booked-counts', async (_req: Request, res: Response) => {
+  const counts: Record<string, number> = {
+    '2026-12-06': 0,
+    '2026-12-20': 0,
+    '2026-12-21': 0,
+    '2026-12-22': 0,
+    '2026-12-23': 0,
+    '2026-12-24': 0,
+  };
+
+  const key = cleanStr(STRIPE_SECRET_KEY);
+  if (!key || key.length < 10 || key.includes('{{')) {
+    return res.json({ counts, source: 'default' });
+  }
+
+  try {
+    const response = await fetch('https://api.stripe.com/v1/checkout/sessions?status=complete&limit=100', {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}`,
+        'Stripe-Version': '2025-03-31.basil',
+      },
+    });
+    const data = await response.json();
+    if (response.ok && Array.isArray(data.data)) {
+      for (const sess of data.data) {
+        if (sess.payment_status === 'paid' && sess.metadata?.date_key && sess.metadata.date_key in counts) {
+          counts[sess.metadata.date_key] += 1;
+        }
+      }
+    }
+    return res.json({ counts, source: 'stripe' });
+  } catch (err) {
+    console.warn('Could not fetch Stripe booked counts, returning 0s:', err);
+    return res.json({ counts, source: 'fallback' });
+  }
 });
 
 // Health check endpoint

@@ -258,18 +258,20 @@ export const FULL_SCHEDULE_MSG_OTHER_ES = 'Santa tiene la agenda llena este día
 export const FULL_SCHEDULE_MSG_OTHER_EN = "Santa's schedule is full for this day";
 
 export const DEFAULT_BOOKED_COUNTS: Record<string, number> = {
-  '2026-12-06': 5, // 2 cupos libres
-  '2026-12-20': 4, // 3 cupos libres
-  '2026-12-21': 6, // 1 cupo libre
-  '2026-12-22': 5, // 2 cupos libres
-  '2026-12-23': 6, // 1 cupo libre
-  '2026-12-24': 6, // 1 cupo libre (a 1 visita de llenarse)
+  '2026-12-06': 0,
+  '2026-12-20': 0,
+  '2026-12-21': 0,
+  '2026-12-22': 0,
+  '2026-12-23': 0,
+  '2026-12-24': 0,
 };
 
-export const QUOTAS_STORAGE_KEY = 'santa_calvia_day_quotas_v2';
+export const QUOTAS_STORAGE_KEY = 'santa_calvia_day_quotas_v3';
 
 export const getStoredDayBookedCounts = (): Record<string, number> => {
   try {
+    // Clear legacy pre-filled demo quota key if present
+    localStorage.removeItem('santa_calvia_day_quotas_v2');
     const raw = localStorage.getItem(QUOTAS_STORAGE_KEY);
     if (raw) {
       return { ...DEFAULT_BOOKED_COUNTS, ...JSON.parse(raw) };
