@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   X,
-  Sparkles,
   Calendar,
   Check,
   ShieldCheck,
@@ -367,8 +366,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         {!confirmedBooking ? (
           <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-stone-700 text-sm">
 
-            {/* Exclusive G-PAY Checkout or Full Capacity Banner */}
-            {isCurrentDateFull ? (
+            {/* Full Capacity Banner (when the selected date reaches 7/7) */}
+            {isCurrentDateFull && (
               <div
                 className={`p-4 rounded-2xl border-2 text-center space-y-2 shadow-sm ${
                   is24Dec
@@ -409,62 +408,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     : 'All 7 visit slots have been booked for this date. Please select another available date.'}
                 </p>
               </div>
-            ) : (
-              <div className="bg-gradient-to-r from-amber-50 to-stone-50 p-3.5 rounded-2xl border-2 border-amber-300 shadow-xs">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5 font-cinzel">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                    {language === 'es' ? 'MÉTODO DE PAGO HABILITADO' : 'ENABLED PAYMENT METHOD'}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
-                      <Check className="w-3 h-3 text-emerald-600" />
-                      {language === 'es' ? 'G-Pay Habilitado' : 'G-Pay Enabled'}
-                    </span>
-                    <span className="text-[10px] font-extrabold text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded-full border border-amber-300">
-                      {remainingSlotsForSelectedDate === 1
-                        ? (language === 'es' ? '¡Último cupo!' : '1 slot left!')
-                        : (language === 'es' ? `${remainingSlotsForSelectedDate} de 7 cupos` : `${remainingSlotsForSelectedDate} of 7 slots`)}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleGPayCheckout(false)}
-                  disabled={isProcessingGPay}
-                  className="w-full bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-300 hover:border-amber-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm shadow-xs transition transform active:scale-[0.99] cursor-pointer text-center"
-                >
-                  {isProcessingGPay ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-amber-700" />
-                      <span>{language === 'es' ? 'Conectando con Stripe...' : 'Connecting to Stripe...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <GooglePayIcon />
-                      <span className="font-extrabold text-stone-900 tracking-wide text-sm sm:text-base">G Pay</span>
-                      <span className="text-stone-700 font-medium">
-                        {language === 'es' ? '· Pago exprés con Stripe / G-Pay' : '· Express Stripe / G-Pay Checkout'} ({selectedDateChoice.price}€)
-                      </span>
-                      <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
-                    </>
-                  )}
-                </button>
-                <p className="text-[10px] text-stone-500 text-center mt-1.5">
-                  {language === 'es'
-                    ? 'Redirige a la pasarela oficial y segura de Stripe (compatible con G-Pay y tarjeta).'
-                    : 'Redirects to the official, secure Stripe checkout (supporting G-Pay and cards).'}
-                </p>
-              </div>
             )}
-
-            <div className="relative flex items-center justify-center my-1">
-              <div className="border-t border-stone-300 w-full"></div>
-              <span className="bg-[#FCF9F2] px-3 text-[11px] text-stone-500 font-medium uppercase tracking-wider">
-                {language === 'es' ? 'o completa los detalles de tu solicitud' : 'or complete your request details'}
-              </span>
-            </div>
 
             {/* Main Booking Form */}
             <form onSubmit={handleFormSubmission} className="space-y-4">
