@@ -25,31 +25,31 @@ function cleanStr(val: unknown): string {
 const STRIPE_SECRET_KEY = cleanStr(process.env.STRIPE_SECRET_KEY);
 const STRIPE_CHECKOUT_MODE = cleanStr(process.env.STRIPE_CHECKOUT_MODE).toLowerCase() || 'payment';
 
-// Direct Stripe Payment Links (used as backup if needed)
+// Direct Stripe Payment Links (live URLs used as backup if needed)
 const DEFAULT_STRIPE_PAYMENT_LINKS: Record<string, string> = {
-  'elfo-6dic': 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
-  'pkg-dec-6': 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
-  'date-6-dec': 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
-  '2026-12-06': 'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02',
+  'elfo-6dic': 'https://buy.stripe.com/3cIbJ0ckT43NeMrdFTeQM05',
+  'pkg-dec-6': 'https://buy.stripe.com/3cIbJ0ckT43NeMrdFTeQM05',
+  'date-6-dec': 'https://buy.stripe.com/3cIbJ0ckT43NeMrdFTeQM05',
+  '2026-12-06': 'https://buy.stripe.com/3cIbJ0ckT43NeMrdFTeQM05',
 
-  'santa-elfo-20-22': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
-  'pkg-dec-20-22': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
-  'date-20-dec': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
-  'date-21-dec': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
-  'date-22-dec': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
-  '2026-12-20': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
-  '2026-12-21': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
-  '2026-12-22': 'https://buy.stripe.com/test_eVq5kF5Jg4Wrc04cXBa7C03',
+  'santa-elfo-20-22': 'https://buy.stripe.com/4gMaEWckTcAjbAfcBPeQM06',
+  'pkg-dec-20-22': 'https://buy.stripe.com/4gMaEWckTcAjbAfcBPeQM06',
+  'date-20-dec': 'https://buy.stripe.com/4gMaEWckTcAjbAfcBPeQM06',
+  'date-21-dec': 'https://buy.stripe.com/4gMaEWckTcAjbAfcBPeQM06',
+  'date-22-dec': 'https://buy.stripe.com/4gMaEWckTcAjbAfcBPeQM06',
+  '2026-12-20': 'https://buy.stripe.com/4gMaEWckTcAjbAfcBPeQM06',
+  '2026-12-21': 'https://buy.stripe.com/4gMaEWckTcAjbAfcBPeQM06',
+  '2026-12-22': 'https://buy.stripe.com/4gMaEWckTcAjbAfcBPeQM06',
 
-  'santa-elfo-23': 'https://buy.stripe.com/test_6oU00l5Jg88D1lq4r5a7C04',
-  'pkg-dec-23': 'https://buy.stripe.com/test_6oU00l5Jg88D1lq4r5a7C04',
-  'date-23-dec': 'https://buy.stripe.com/test_6oU00l5Jg88D1lq4r5a7C04',
-  '2026-12-23': 'https://buy.stripe.com/test_6oU00l5Jg88D1lq4r5a7C04',
+  'santa-elfo-23': 'https://buy.stripe.com/eVqaEW70z0RBfQv1XbeQM01',
+  'pkg-dec-23': 'https://buy.stripe.com/eVqaEW70z0RBfQv1XbeQM01',
+  'date-23-dec': 'https://buy.stripe.com/eVqaEW70z0RBfQv1XbeQM01',
+  '2026-12-23': 'https://buy.stripe.com/eVqaEW70z0RBfQv1XbeQM01',
 
-  'santa-elfo-24': 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
-  'pkg-dec-24': 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
-  'date-24-dec': 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
-  '2026-12-24': 'https://buy.stripe.com/test_dRm6oJ2x40Gbd48g9Na7C05',
+  'santa-elfo-24': 'https://buy.stripe.com/28E7sK70zgQz8o3eJXeQM02',
+  'pkg-dec-24': 'https://buy.stripe.com/28E7sK70zgQz8o3eJXeQM02',
+  'date-24-dec': 'https://buy.stripe.com/28E7sK70zgQz8o3eJXeQM02',
+  '2026-12-24': 'https://buy.stripe.com/28E7sK70zgQz8o3eJXeQM02',
 };
 
 // Price IDs verified in user's Stripe Account (acct_1UUYs3ATdLCeEq1p)
@@ -91,8 +91,9 @@ async function createStripeSession({
   successUrl,
   cancelUrl,
   customerEmail,
+  locale = 'es',
   metadata = {},
-  enableManagedPayments = true,
+  enableManagedPayments = false,
 }: {
   secretKey: string;
   priceId?: string;
@@ -102,6 +103,7 @@ async function createStripeSession({
   successUrl: string;
   cancelUrl: string;
   customerEmail?: string;
+  locale?: string;
   metadata?: Record<string, string>;
   enableManagedPayments?: boolean;
 }) {
@@ -109,7 +111,8 @@ async function createStripeSession({
   if (enableManagedPayments) {
     p.append('managed_payments[enabled]', 'true');
   }
-  p.append('mode', 'payment');
+  p.append('mode', STRIPE_CHECKOUT_MODE === 'subscription' ? 'subscription' : 'payment');
+  p.append('locale', locale === 'en' ? 'en' : 'es');
   p.append('success_url', successUrl);
   p.append('cancel_url', cancelUrl);
   p.append('line_items[0][quantity]', '1');
@@ -124,7 +127,13 @@ async function createStripeSession({
     p.append('line_items[0][price_data][product_data][description]', productDescription || 'Visita a domicilio');
   }
 
-  if (customerEmail && customerEmail.includes('@') && !customerEmail.includes('ejemplo.com')) {
+  const isPlaceholderEmail =
+    !customerEmail ||
+    !customerEmail.includes('@') ||
+    customerEmail.includes('ejemplo.com') ||
+    customerEmail.includes('solicitud-stripe@cliente.com');
+
+  if (!isPlaceholderEmail) {
     p.append('customer_email', customerEmail);
   }
 
@@ -159,6 +168,7 @@ app.post('/api/create-checkout-session', async (req: Request, res: Response) => 
       dateKey,
       dayLabel,
       amount,
+      locale,
       priceId: requestedPriceId,
     } = req.body;
 
@@ -197,7 +207,8 @@ app.post('/api/create-checkout-session', async (req: Request, res: Response) => 
       customer_name: cleanStr(customerName),
     };
 
-    // First attempt: with managed_payments[enabled]=true
+    const useManagedPayments = cleanStr(process.env.STRIPE_MANAGED_PAYMENTS).toLowerCase() === 'true';
+
     let { response, data } = await createStripeSession({
       secretKey: key,
       priceId: targetPriceId,
@@ -207,13 +218,12 @@ app.post('/api/create-checkout-session', async (req: Request, res: Response) => 
       successUrl,
       cancelUrl,
       customerEmail: cleanStr(customerEmail),
+      locale: cleanStr(locale) || 'es',
       metadata: meta,
-      enableManagedPayments: true,
+      enableManagedPayments: useManagedPayments,
     });
 
-    // If managed_payments is rejected for any reason, retry without it
-    if (!response.ok && data.error?.message?.includes('managed-payments')) {
-      console.log('Managed payments retry without flag...');
+    if (useManagedPayments && !response.ok && data.error?.message?.toLowerCase().includes('managed')) {
       const retryResult = await createStripeSession({
         secretKey: key,
         priceId: targetPriceId,
@@ -223,6 +233,7 @@ app.post('/api/create-checkout-session', async (req: Request, res: Response) => 
         successUrl,
         cancelUrl,
         customerEmail: cleanStr(customerEmail),
+        locale: cleanStr(locale) || 'es',
         metadata: meta,
         enableManagedPayments: false,
       });
@@ -287,7 +298,7 @@ app.get('/api/check-stripe', async (_req: Request, res: Response) => {
         successUrl: 'https://example.com/success',
         cancelUrl: 'https://example.com/cancel',
         metadata: { diagnostic_check: 'true', package: item.pkgId },
-        enableManagedPayments: true,
+        enableManagedPayments: false,
       });
 
       results.push({

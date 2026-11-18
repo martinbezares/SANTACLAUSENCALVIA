@@ -191,7 +191,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const currentStripeUrl =
     (selectedDateChoice as any).stripeCheckoutUrl ||
     STRIPE_CHECKOUT_URLS[currentPkg.id as keyof typeof STRIPE_CHECKOUT_URLS] ||
-    'https://buy.stripe.com/test_4gMfZjefM2Oj4xC6zda7C02';
+    'https://buy.stripe.com/3cIbJ0ckT43NeMrdFTeQM05';
 
   const handleGPayCheckout = async (fromForm = false) => {
     if (isCurrentDateFull) {
@@ -215,12 +215,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const timeLabel = getTimeSlotPreferenceText(selectedTimeWindow);
     const dayLabel = language === 'es' ? selectedDateChoice.dayLabelEs : selectedDateChoice.dayLabelEn;
 
+    const realCustomerEmail = fromForm && email.trim() ? email.trim() : '';
+
     const newBooking: Booking = {
       id: `req_${Date.now()}`,
       code,
       fullName: fromForm && fullName.trim() ? fullName.trim() : (language === 'es' ? 'Familia Calvià (Pago Stripe/G-Pay)' : 'Calvià Family (Stripe/G-Pay)'),
       phone: fromForm && phone.trim() ? phone.trim() : '+34 661 532237',
-      email: fromForm && email.trim() ? email.trim() : 'solicitud-stripe@cliente.com',
+      email: realCustomerEmail || 'solicitud-stripe@cliente.com',
       dateKey: selectedDateChoice.dateKey,
       dateLabel: `${dayLabel} · ${currentPkgName}`,
       timeSlot: timeLabel,
@@ -243,7 +245,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     onBookingSuccess(newBooking);
 
     // Activar pago llamando al endpoint del backend /api/create-checkout-session
-    // que implementa la creación de sesión en Stripe con la versión basil 2025-03-31
     let redirectUrl = currentStripeUrl;
 
     try {
@@ -255,11 +256,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         body: JSON.stringify({
           packageId: currentPkg.id,
           bookingCode: code,
-          customerEmail: newBooking.email,
+          customerEmail: realCustomerEmail || undefined,
           customerName: newBooking.fullName,
           dateKey: selectedDateChoice.dateKey,
           dayLabel,
           amount: selectedDateChoice.price,
+          locale: language === 'es' ? 'es' : 'en',
         }),
       });
 
