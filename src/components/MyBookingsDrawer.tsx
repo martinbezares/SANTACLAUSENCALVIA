@@ -17,6 +17,11 @@ import {
   ArrowUp,
   ArrowDown,
   RotateCcw,
+  Lock,
+  Unlock,
+  KeyRound,
+  Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { Booking, Language, ScheduleSlot } from '../types';
 import {
@@ -49,12 +54,136 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
   const [autoScheduledMsg, setAutoScheduledMsg] = useState<string | null>(null);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
 
+  // Server-verified access gate state (Bearer token kept strictly in React memory)
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [remoteBookings, setRemoteBookings] = useState<Booking[]>([]);
+  const [loadingRemote, setLoadingRemote] = useState(false);
+
+  const isUnlocked = Boolean(accessToken);
+
+  React.useEffect(() => {
+    if (!isOpen || isUnlocked) return;
+    let cancelled = false;
+    fetch('/api/bookings-access/status')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && data.configured === false) {
+          setNeedsSetup(true);
+        }
+      })
+      .catch(() => {
+        // ignore status check error
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, isUnlocked]);
+
+  const loadProtectedRecords = async (token: string) => {
+    setLoadingRemote(true);
+    try {
+      const res = await fetch('/api/bookings-access/records', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.status === 401) {
+        setAccessToken(null);
+        setRemoteBookings([]);
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.bookings)) {
+          setRemoteBookings(data.bookings);
+        }
+      }
+    } catch {
+      // keep local bookings if network fails
+    } finally {
+      setLoadingRemote(false);
+    }
+  };
+
+  const handleUnlockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = codeInput.trim();
+    if (!trimmed) {
+      setAuthError(language === 'es' ? 'Introduce el código de acceso.' : 'Please enter the access code.');
+      return;
+    }
+
+    setIsVerifying(true);
+    setAuthError(null);
+    try {
+      const endpoint = needsSetup ? '/api/bookings-access/setup' : '/api/bookings-access/verify';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok || !data.token) {
+        setAuthError(
+          data.error ||
+            (language === 'es'
+              ? 'Código incorrecto. Solo el administrador puede ver las reservas.'
+              : 'Incorrect code. Only authorized access can view bookings.')
+        );
+        return;
+      }
+      setAccessToken(data.token);
+      setNeedsSetup(false);
+      setCodeInput('');
+      setAuthError(null);
+      await loadProtectedRecords(data.token);
+    } catch {
+      setAuthError(
+        language === 'es'
+          ? 'No se pudo comprobar el código. Inténtalo de nuevo.'
+          : 'Could not verify code. Please try again.'
+      );
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleLock = () => {
+    setAccessToken(null);
+    setRemoteBookings([]);
+    setCodeInput('');
+    setAuthError(null);
+  };
+
   if (!isOpen) return null;
+
+  // Merge local bookings and verified remote Stripe bookings (deduplicated by code)
+  const mergedBookings: Booking[] = (() => {
+    const byCode = new Map<string, Booking>();
+    for (const b of bookings) {
+      byCode.set(b.code, b);
+    }
+    for (const rb of remoteBookings) {
+      if (!byCode.has(rb.code)) {
+        byCode.set(rb.code, rb);
+      } else {
+        const existing = byCode.get(rb.code)!;
+        byCode.set(rb.code, { ...existing, status: 'confirmada', paymentMethod: rb.paymentMethod });
+      }
+    }
+    return Array.from(byCode.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  })();
 
   // Sort bookings for the Route Sheet:
   // 1. By Date
   // 2. By manual order if set, or by geographical routeOrder (Palmanova -> Magaluf -> El Toro -> Santa Ponsa -> Andratx, etc.)
-  const sortedForRoute = [...bookings].sort((a, b) => {
+  const sortedForRoute = [...mergedBookings].sort((a, b) => {
     if (a.dateKey !== b.dateKey) {
       return a.dateKey.localeCompare(b.dateKey);
     }
@@ -208,67 +337,179 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-200 transition cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
-              aria-label={language === 'es' ? 'Cerrar' : 'Close'}
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {isUnlocked && (
+                <button
+                  type="button"
+                  onClick={handleLock}
+                  className="px-2.5 py-1.5 text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                  title={language === 'es' ? 'Bloquear acceso' : 'Lock access'}
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>{language === 'es' ? 'Bloquear' : 'Lock'}</span>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-200 transition cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label={language === 'es' ? 'Cerrar' : 'Close'}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
-          {/* Switch tabs: Requests vs Route Sheet */}
-          <div className="flex bg-stone-200/80 p-1 rounded-xl mt-3 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setActiveTab('requests')}
-              className={`flex-1 py-1.5 px-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === 'requests'
-                  ? 'bg-white text-stone-900 shadow-xs'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5 text-[#8A0F1A]" />
-              <span>
-                {language === 'es' ? 'Mis Solicitudes' : 'My Requests'} ({bookings.length})
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('route')}
-              className={`flex-1 py-1.5 px-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === 'route'
-                  ? 'bg-white text-[#8A0F1A] shadow-xs font-bold'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5 text-amber-600" />
-              <span>
-                {language === 'es' ? 'Hoja de Ruta (Ordenada)' : 'Route Sheet (Ordered)'}
-              </span>
-            </button>
-          </div>
+          {/* Switch tabs: Requests vs Route Sheet (only visible once unlocked) */}
+          {isUnlocked && (
+            <div className="flex bg-stone-200/80 p-1 rounded-xl mt-3 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setActiveTab('requests')}
+                className={`flex-1 py-1.5 px-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeTab === 'requests'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-[#8A0F1A]" />
+                <span>
+                  {language === 'es' ? 'Reservas' : 'Bookings'} ({mergedBookings.length})
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('route')}
+                className={`flex-1 py-1.5 px-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeTab === 'route'
+                    ? 'bg-white text-[#8A0F1A] shadow-xs font-bold'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5 text-amber-600" />
+                <span>
+                  {language === 'es' ? 'Hoja de Ruta (Ordenada)' : 'Route Sheet (Ordered)'}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Access Code Gate: Blocks all reservations until verified on server */}
+        {!isUnlocked ? (
+          <div className="p-6 flex-1 flex flex-col items-center justify-center">
+            <div className="w-full max-w-sm bg-white border-2 border-amber-300 rounded-2xl p-6 shadow-md space-y-4 text-center">
+              <div className="w-14 h-14 mx-auto rounded-full bg-[#8A0F1A] text-amber-300 flex items-center justify-center shadow-inner border-2 border-amber-400">
+                <Lock className="w-6 h-6" />
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="font-cinzel text-lg font-bold text-stone-900">
+                  {needsSetup
+                    ? language === 'es'
+                      ? 'Configurar Código de Acceso'
+                      : 'Set Up Access Code'
+                    : language === 'es'
+                    ? 'Acceso Privado a Reservas'
+                    : 'Private Bookings Access'}
+                </h4>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  {needsSetup
+                    ? language === 'es'
+                      ? 'Define el código privado para proteger el panel de reservas.'
+                      : 'Choose a private passcode to protect the bookings panel.'
+                    : language === 'es'
+                    ? 'Introduce el código de acceso para ver las reservas y la hoja de ruta de Santa.'
+                    : "Enter the access code to view bookings and Santa's route sheet."}
+                </p>
+              </div>
+
+              <form onSubmit={handleUnlockSubmit} className="space-y-3 text-left">
+                <div>
+                  <label
+                    htmlFor="bookings-access-code"
+                    className="block text-xs font-bold text-stone-700 mb-1"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 inline text-amber-700 mr-1" />
+                    {language === 'es' ? 'Código de acceso' : 'Access code'}
+                  </label>
+                  <input
+                    id="bookings-access-code"
+                    type="password"
+                    autoFocus
+                    autoComplete="off"
+                    value={codeInput}
+                    onChange={(e) => {
+                      setCodeInput(e.target.value);
+                      if (authError) setAuthError(null);
+                    }}
+                    placeholder={language === 'es' ? 'Introduce el código...' : 'Enter access code...'}
+                    className="w-full rounded-xl border border-stone-300 focus:border-[#8A0F1A] focus:ring-2 focus:ring-red-200 px-3.5 py-2.5 text-sm bg-stone-50 font-mono"
+                  />
+                </div>
+
+                {authError && (
+                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-300 text-red-800 text-xs font-semibold flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isVerifying}
+                  className="w-full bg-gradient-to-r from-[#8A0F1A] via-red-700 to-[#8A0F1A] hover:from-red-700 hover:to-red-800 text-white font-bold py-3 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow cursor-pointer disabled:opacity-60"
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                      <span>{language === 'es' ? 'Verificando...' : 'Verifying...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="w-4 h-4 text-amber-300" />
+                      <span>{language === 'es' ? 'Acceder a las Reservas' : 'Unlock Bookings'}</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <p className="text-[10px] text-stone-400 flex items-center justify-center gap-1 pt-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>
+                  {language === 'es'
+                    ? 'Verificación segura en servidor'
+                    : 'Secure server-side verification'}
+                </span>
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {/* Tab 1: Requests list */}
-        {activeTab === 'requests' && (
+        {isUnlocked && activeTab === 'requests' && (
           <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3.5">
-            {bookings.length === 0 ? (
+            {loadingRemote && (
+              <div className="flex items-center justify-center gap-2 text-xs text-stone-500 py-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
+                <span>{language === 'es' ? 'Sincronizando reservas con Stripe...' : 'Syncing bookings with Stripe...'}</span>
+              </div>
+            )}
+            {mergedBookings.length === 0 ? (
               <div className="text-center py-12 text-stone-500 text-xs sm:text-sm space-y-2">
                 <div className="text-3xl">🎅✨</div>
                 <p className="font-semibold text-stone-700">
                   {language === 'es'
-                    ? 'No hay solicitudes registradas en este dispositivo todavía.'
-                    : 'No visit requests recorded on this device yet.'}
+                    ? 'No hay reservas registradas todavía.'
+                    : 'No bookings recorded yet.'}
                 </p>
                 <p className="text-xs text-stone-500 max-w-xs mx-auto">
                   {language === 'es'
-                    ? 'Envía una solicitud eligiendo tu fecha y franja horaria preferida.'
-                    : 'Submit a request choosing your preferred date and time window.'}
+                    ? 'Cuando los clientes realicen una reserva aparecerán aquí automáticamente.'
+                    : 'When families submit a booking, it will appear here automatically.'}
                 </p>
               </div>
             ) : (
-              bookings.map((booking) => {
+              mergedBookings.map((booking) => {
                 const assigned = assignedTimes[booking.id];
                 return (
                   <div
@@ -354,7 +595,7 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
         )}
 
         {/* Tab 2: Route Sheet organized by geographical route */}
-        {activeTab === 'route' && (
+        {isUnlocked && activeTab === 'route' && (
           <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-4">
             {/* Route explainer badge */}
             <div className="bg-gradient-to-r from-red-900 to-[#750A13] text-amber-100 p-3.5 rounded-2xl text-xs space-y-2 shadow-md">

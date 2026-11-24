@@ -16,6 +16,8 @@ import {
   ExternalLink,
   AlertTriangle,
   Lock,
+  Smartphone,
+  Copy,
 } from 'lucide-react';
 
 const GooglePayIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5 shrink-0' }) => (
@@ -55,6 +57,8 @@ import {
   FULL_SCHEDULE_MSG_DEC24_EN,
   FULL_SCHEDULE_MSG_OTHER_ES,
   FULL_SCHEDULE_MSG_OTHER_EN,
+  BIZUM_PHONE_DISPLAY,
+  BIZUM_PHONE_RAW,
 } from '../data/santaData';
 import { Booking, Language, PackageTier, PreferredTimeWindow } from '../types';
 import { translations } from '../utils/i18n';
@@ -102,6 +106,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
   const [isProcessingGPay, setIsProcessingGPay] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'stripe' | 'bizum'>('stripe');
+  const [copiedBizum, setCopiedBizum] = useState(false);
 
   // Quotas state: max 7 visits per day across Calvià
   const [dailyQuotas, setDailyQuotas] = useState<Record<string, number>>(() => getStoredDayBookedCounts());
@@ -192,11 +198,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     STRIPE_CHECKOUT_URLS[currentPkg.id as keyof typeof STRIPE_CHECKOUT_URLS] ||
     'https://buy.stripe.com/3cIbJ0ckT43NeMrdFTeQM05';
 
-  const handleGPayCheckout = async (fromForm = false) => {
+  const handleCopyBizumPhone = () => {
+    try {
+      navigator.clipboard.writeText(BIZUM_PHONE_RAW);
+      setCopiedBizum(true);
+      setTimeout(() => setCopiedBizum(false), 2500);
+    } catch {
+      // ignore clipboard errors
+    }
+  };
+
+  const handleCheckout = async (paymentChoice: 'stripe' | 'bizum') => {
     if (isCurrentDateFull) {
       return;
     }
-    setIsProcessingGPay(true);
     playSoftSparkleSound();
 
     const randomNum = Math.floor(100 + Math.random() * 900);
@@ -205,34 +220,50 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const timeLabel = getTimeSlotPreferenceText(selectedTimeWindow);
     const dayLabel = language === 'es' ? selectedDateChoice.dayLabelEs : selectedDateChoice.dayLabelEn;
 
-    const realCustomerEmail = fromForm && email.trim() ? email.trim() : '';
+    const realCustomerEmail = email.trim();
+    const isBizum = paymentChoice === 'bizum';
 
     const newBooking: Booking = {
       id: `req_${Date.now()}`,
       code,
-      fullName: fromForm && fullName.trim() ? fullName.trim() : (language === 'es' ? 'Familia Calvià (Pago Stripe/G-Pay)' : 'Calvià Family (Stripe/G-Pay)'),
-      phone: fromForm && phone.trim() ? phone.trim() : '+34 661 532237',
-      email: realCustomerEmail || 'solicitud-stripe@cliente.com',
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      email: realCustomerEmail || 'solicitud@cliente.com',
       dateKey: selectedDateChoice.dateKey,
       dateLabel: `${dayLabel} · ${currentPkgName}`,
       timeSlot: timeLabel,
       preferredTimeWindow: selectedTimeWindow,
       zone: locationArea,
-      address: fromForm && address.trim() ? address.trim() : (language === 'es' ? 'Dirección confirmada por WhatsApp (Stripe)' : 'Address via WhatsApp (Stripe)'),
-      kidsInfo: fromForm && kidsInfo.trim() ? kidsInfo.trim() : (language === 'es' ? 'Los pequeños de la casa (máx. 3 niños)' : 'Children at home (max. 3 kids)'),
-      notes: specialGiftNotes || (language === 'es' ? 'Pago tramitado mediante Stripe / G-Pay' : 'Payment processed via Stripe / G-Pay'),
+      address: address.trim(),
+      kidsInfo: kidsInfo.trim(),
+      notes:
+        specialGiftNotes.trim() ||
+        (isBizum
+          ? language === 'es'
+            ? `Pago mediante Bizum al ${BIZUM_PHONE_DISPLAY}`
+            : `Payment via Bizum to ${BIZUM_PHONE_DISPLAY}`
+          : language === 'es'
+          ? 'Pago tramitado mediante Stripe (Tarjeta / G-Pay)'
+          : 'Payment processed via Stripe (Card / G-Pay)'),
       packageId: currentPkg.id,
       packageName: currentPkgName,
       price: selectedDateChoice.price,
       createdAt: new Date().toISOString(),
-      isExpress: !fromForm,
+      isExpress: false,
       status: 'solicitud',
       routeOrder: zoneObj?.routeOrder || 99,
-      paymentMethod: 'G-Pay (Stripe)',
+      paymentMethod: isBizum ? `Bizum (${BIZUM_PHONE_DISPLAY})` : 'Stripe (Tarjeta / G-Pay)',
     };
 
     setConfirmedBooking(newBooking);
     onBookingSuccess(newBooking);
+
+    // If Bizum is selected, keep user on confirmation screen with Bizum instructions & printable voucher
+    if (isBizum) {
+      return;
+    }
+
+    setIsProcessingGPay(true);
 
     // Activar pago llamando al endpoint del backend /api/create-checkout-session
     let redirectUrl = currentStripeUrl;
@@ -289,7 +320,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleFormSubmission = (e: React.FormEvent) => {
     e.preventDefault();
-    handleGPayCheckout(true);
+    handleCheckout(selectedPaymentMethod);
   };
 
   const resetAndClose = () => {
@@ -315,10 +346,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // WhatsApp confirmation text
   const getWhatsAppConfirmUrl = (booking: Booking) => {
+    const payLabel = booking.paymentMethod || 'Stripe (Tarjeta / G-Pay)';
     const msg = encodeURIComponent(
       language === 'es'
-        ? `¡Hola! 🎅 Acabo de enviar mi SOLICITUD DE VISITA DE SANTA Y SU ELFO:\n• Código: ${booking.code}\n• Día: ${booking.dateLabel}\n• ${booking.timeSlot}\n• Zona / Dirección: ${booking.zone} (${booking.address})\n• Tarifa: ${booking.price}€ (desplazamiento incluido)\n• Método de Pago: G-Pay (Google Pay)\n• Niños: ${booking.kidsInfo}\n\n*${t.timeNoticeImportant}*\n${t.timeNoticeRouteDetail}\n\n¡Muchas gracias!`
-        : `Hello! 🎅 I have submitted my SANTA & HIS ELF VISIT REQUEST:\n• Code: ${booking.code}\n• Date: ${booking.dateLabel}\n• ${booking.timeSlot}\n• Zone / Address: ${booking.zone} (${booking.address})\n• Price: ${booking.price}€ (travel included)\n• Payment Method: G-Pay (Google Pay)\n• Children: ${booking.kidsInfo}\n\n*${t.timeNoticeImportant}*\n${t.timeNoticeRouteDetail}\n\nThank you!`
+        ? `¡Hola! 🎅 Acabo de enviar mi SOLICITUD DE VISITA DE SANTA Y SU ELFO:\n• Código: ${booking.code}\n• Familia: ${booking.fullName}\n• Día: ${booking.dateLabel}\n• ${booking.timeSlot}\n• Zona / Dirección: ${booking.zone} (${booking.address})\n• Tarifa: ${booking.price}€ (desplazamiento incluido)\n• Método de Pago: ${payLabel}\n• Niños: ${booking.kidsInfo}\n\n*${t.timeNoticeImportant}*\n${t.timeNoticeRouteDetail}\n\n¡Muchas gracias!`
+        : `Hello! 🎅 I have submitted my SANTA & HIS ELF VISIT REQUEST:\n• Code: ${booking.code}\n• Family: ${booking.fullName}\n• Date: ${booking.dateLabel}\n• ${booking.timeSlot}\n• Zone / Address: ${booking.zone} (${booking.address})\n• Price: ${booking.price}€ (travel included)\n• Payment Method: ${payLabel}\n• Children: ${booking.kidsInfo}\n\n*${t.timeNoticeImportant}*\n${t.timeNoticeRouteDetail}\n\nThank you!`
     );
     return `https://wa.me/34661532237?text=${msg}`;
   };
@@ -785,25 +817,108 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </span>
               </div>
 
-              {/* Payment Method Badge: Stripe & G-PAY */}
-              <div className="p-3.5 bg-gradient-to-r from-amber-50 to-stone-50 border-2 border-amber-300 rounded-xl space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GooglePayIcon />
-                    <span className="font-bold text-xs text-stone-900 font-cinzel">
-                      {language === 'es' ? 'Pago Seguro con Stripe (G-Pay y Tarjeta)' : 'Secure Stripe Checkout (G-Pay & Card)'}
-                    </span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
-                    <Check className="w-3 h-3 text-emerald-600" />
-                    {language === 'es' ? 'Enlace Oficial' : 'Official Link'}
-                  </span>
+              {/* Payment Method Selector: Stripe (Card/G-Pay) OR Bizum */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-stone-800">
+                  {language === 'es' ? 'Elige tu forma de pago:' : 'Choose your payment method:'}
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Option 1: Stripe */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('stripe')}
+                    className={`p-3 rounded-xl border-2 text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
+                      selectedPaymentMethod === 'stripe'
+                        ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400/30 shadow-xs'
+                        : 'bg-white border-stone-200 hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <GooglePayIcon className="w-4 h-4 shrink-0" />
+                        <span className="font-bold text-xs text-stone-900 font-cinzel">
+                          {language === 'es' ? 'Stripe / Tarjeta' : 'Stripe / Card'}
+                        </span>
+                      </div>
+                      {selectedPaymentMethod === 'stripe' && (
+                        <span className="w-4 h-4 rounded-full bg-amber-600 text-white flex items-center justify-center shrink-0">
+                          <Check className="w-3 h-3" />
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-stone-600 leading-tight">
+                      {language === 'es'
+                        ? 'Tarjeta, Apple Pay o G-Pay mediante pasarela cifrada de Stripe.'
+                        : 'Card, Apple Pay, or G-Pay via encrypted Stripe checkout.'}
+                    </p>
+                  </button>
+
+                  {/* Option 2: Bizum */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('bizum')}
+                    className={`p-3 rounded-xl border-2 text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
+                      selectedPaymentMethod === 'bizum'
+                        ? 'bg-cyan-50/90 border-cyan-600 ring-2 ring-cyan-500/25 shadow-xs'
+                        : 'bg-white border-stone-200 hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Smartphone className="w-4 h-4 text-cyan-700 shrink-0" />
+                        <span className="font-bold text-xs text-stone-900 font-cinzel">
+                          Bizum
+                        </span>
+                      </div>
+                      {selectedPaymentMethod === 'bizum' && (
+                        <span className="w-4 h-4 rounded-full bg-cyan-600 text-white flex items-center justify-center shrink-0">
+                          <Check className="w-3 h-3" />
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-stone-600 leading-tight">
+                      {language === 'es'
+                        ? `Envío directo al ${BIZUM_PHONE_DISPLAY} indicando tu código de reserva.`
+                        : `Direct transfer to ${BIZUM_PHONE_DISPLAY} with your booking code.`}
+                    </p>
+                  </button>
                 </div>
-                <p className="text-[11px] text-stone-600 leading-tight">
-                  {language === 'es'
-                    ? 'Al enviar se guardarán tus datos de visita y serás redirigido a la pasarela cifrada de Stripe para formalizar el abono.'
-                    : 'Upon submitting, your visit details will be recorded and you will be directed to Stripe to complete payment.'}
-                </p>
+
+                {selectedPaymentMethod === 'bizum' ? (
+                  <div className="p-3 bg-cyan-50/80 border border-cyan-300 rounded-xl text-xs text-cyan-950 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-bold flex items-center gap-1.5">
+                        <Smartphone className="w-4 h-4 text-cyan-700" />
+                        {language === 'es' ? 'Número de Bizum oficial:' : 'Official Bizum number:'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-extrabold text-sm text-cyan-900 bg-white px-2.5 py-0.5 rounded-lg border border-cyan-300">
+                          {BIZUM_PHONE_DISPLAY}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCopyBizumPhone}
+                          className="inline-flex items-center gap-1 bg-cyan-700 hover:bg-cyan-800 text-white text-[10px] font-bold px-2 py-1 rounded-lg cursor-pointer transition"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{copiedBizum ? (language === 'es' ? '¡Copiado!' : 'Copied!') : (language === 'es' ? 'Copiar' : 'Copy')}</span>
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-cyan-900 leading-snug">
+                      {language === 'es'
+                        ? `Al enviar tu solicitud te daremos tu código de reserva y formulario imprimible para que realices el Bizum de ${selectedDateChoice.price}€ al ${BIZUM_PHONE_DISPLAY} y lo confirmes por WhatsApp.`
+                        : `After submitting your request you will receive your booking code and printable form to send the ${selectedDateChoice.price}€ Bizum to ${BIZUM_PHONE_DISPLAY} and confirm via WhatsApp.`}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-stone-500 px-1">
+                    {language === 'es'
+                      ? 'Al enviar se guardarán tus datos de visita y serás redirigido a la pasarela cifrada de Stripe para formalizar el abono.'
+                      : 'Upon submitting, your visit details will be recorded and you will be directed to Stripe to complete payment.'}
+                  </p>
+                )}
               </div>
 
               {/* Submit Button or Full Agenda Alert Button */}
@@ -835,6 +950,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       : "⚠️ Santa's schedule is full for this day (7 of 7 slots booked). Please select another date."}
                   </p>
                 </div>
+              ) : selectedPaymentMethod === 'bizum' ? (
+                <button
+                  type="submit"
+                  className="w-full font-extrabold py-3.5 px-6 rounded-xl shadow-lg transition transform active:scale-[0.99] flex items-center justify-center gap-2 text-xs sm:text-sm uppercase tracking-wider cursor-pointer bg-gradient-to-r from-cyan-700 via-teal-700 to-cyan-700 hover:from-cyan-800 hover:to-teal-800 text-white shadow-cyan-950/20"
+                >
+                  <Smartphone className="w-4 h-4 text-cyan-200" />
+                  <span>
+                    {language === 'es'
+                      ? `Confirmar Solicitud y Pagar por Bizum · ${selectedDateChoice.price}€`
+                      : `Confirm Request & Pay via Bizum · ${selectedDateChoice.price}€`}
+                  </span>
+                </button>
               ) : (
                 <button
                   type="submit"
@@ -912,28 +1039,80 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </p>
               <div className="flex items-center justify-between pt-1.5 border-t border-stone-100">
                 <span className="font-bold text-stone-600">{language === 'es' ? 'Método de Pago:' : 'Payment Method:'}</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  <Check className="w-3 h-3 text-emerald-600" />
-                  Stripe / G-Pay · {language === 'es' ? 'Enlace Oficial' : 'Official Link'}
-                </span>
+                {confirmedBooking.paymentMethod?.toLowerCase().includes('bizum') ? (
+                  <span className="inline-flex items-center gap-1 font-bold text-cyan-900 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-300">
+                    <Smartphone className="w-3 h-3 text-cyan-700" />
+                    Bizum · {BIZUM_PHONE_DISPLAY}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    Stripe / G-Pay · {language === 'es' ? 'Enlace Oficial' : 'Official Link'}
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Direct Stripe Payment Action */}
-            <div className="pt-1">
-              <a
-                href={currentStripeUrl}
-                target="_top"
-                rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 bg-[#8A0F1A] hover:bg-[#A61C24] text-white font-extrabold py-3.5 px-5 rounded-xl text-xs sm:text-sm shadow-md shadow-red-950/20 transition cursor-pointer text-center"
-              >
-                <GooglePayIcon />
-                <span>
-                  {language === 'es' ? 'Ir al Pago Seguro en Stripe' : 'Proceed to Secure Stripe Checkout'} ({confirmedBooking.price}€)
-                </span>
-                <ExternalLink className="w-4 h-4 text-amber-300" />
-              </a>
-            </div>
+            {/* Payment Instructions / Action */}
+            {confirmedBooking.paymentMethod?.toLowerCase().includes('bizum') ? (
+              <div className="bg-cyan-50 border-2 border-cyan-400 rounded-2xl p-4 text-left max-w-md mx-auto space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-cinzel font-bold text-xs sm:text-sm text-cyan-950 flex items-center gap-1.5">
+                    <Smartphone className="w-4 h-4 text-cyan-700" />
+                    {language === 'es' ? 'Instrucciones para pagar por Bizum' : 'Bizum Payment Instructions'}
+                  </span>
+                  <span className="font-cinzel font-black text-base text-[#8A0F1A]">
+                    {confirmedBooking.price}€
+                  </span>
+                </div>
+                <div className="bg-white rounded-xl p-3 border border-cyan-200 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-stone-600 font-semibold">
+                      {language === 'es' ? 'Teléfono Bizum:' : 'Bizum Phone:'}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <strong className="font-mono text-sm text-cyan-950">{BIZUM_PHONE_DISPLAY}</strong>
+                      <button
+                        type="button"
+                        onClick={handleCopyBizumPhone}
+                        className="inline-flex items-center gap-1 bg-cyan-700 hover:bg-cyan-800 text-white text-[10px] font-bold px-2 py-1 rounded-lg cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedBizum ? (language === 'es' ? '¡Copiado!' : 'Copied!') : (language === 'es' ? 'Copiar' : 'Copy')}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-stone-600 font-semibold">
+                      {language === 'es' ? 'Concepto obligatorio:' : 'Required concept:'}
+                    </span>
+                    <strong className="font-mono text-xs text-[#8A0F1A]">
+                      {confirmedBooking.code} · {confirmedBooking.fullName}
+                    </strong>
+                  </div>
+                </div>
+                <p className="text-[11px] text-cyan-900 leading-snug">
+                  {language === 'es'
+                    ? 'Envía el Bizum desde tu app bancaria y pulsa "Confirmar por WhatsApp" para validar tu plaza al instante. También puedes imprimir ya tu formulario oficial abajo.'
+                    : 'Send the Bizum from your banking app and tap "Confirm via WhatsApp" to validate your slot immediately. You can also print your official visit form below.'}
+                </p>
+              </div>
+            ) : (
+              <div className="pt-1">
+                <a
+                  href={currentStripeUrl}
+                  target="_top"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-[#8A0F1A] hover:bg-[#A61C24] text-white font-extrabold py-3.5 px-5 rounded-xl text-xs sm:text-sm shadow-md shadow-red-950/20 transition cursor-pointer text-center"
+                >
+                  <GooglePayIcon />
+                  <span>
+                    {language === 'es' ? 'Ir al Pago Seguro en Stripe' : 'Proceed to Secure Stripe Checkout'} ({confirmedBooking.price}€)
+                  </span>
+                  <ExternalLink className="w-4 h-4 text-amber-300" />
+                </a>
+              </div>
+            )}
 
             <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3 text-left text-xs max-w-md mx-auto space-y-1">
               <p className="font-bold text-amber-950 text-xs">

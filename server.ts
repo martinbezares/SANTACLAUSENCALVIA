@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -429,6 +430,182 @@ app.get('/api/checkout-session/:sessionId', async (req: Request, res: Response) 
     });
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || 'Error retrieving Stripe session' });
+  }
+});
+
+// --- Server-Side Access Gate for Reservations Panel ---
+const TOKEN_SIGNING_SECRET = cleanStr(process.env.SESSION_SECRET) || crypto.randomBytes(32).toString('hex');
+const TOKEN_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+// Optional first-run fallback hash in memory only if BOOKINGS_ACCESS_CODE is unset in env
+let claimedFallbackHash: { salt: string; hash: string } | null = null;
+
+// Simple in-memory sliding-window rate limiter for passcode attempts (max 15 attempts / 10 min per IP)
+const verifyAttempts = new Map<string, number[]>();
+const MAX_VERIFY_ATTEMPTS = 15;
+const VERIFY_WINDOW_MS = 10 * 60 * 1000;
+
+function checkVerifyRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const prev = (verifyAttempts.get(ip) || []).filter((ts) => now - ts < VERIFY_WINDOW_MS);
+  if (prev.length >= MAX_VERIFY_ATTEMPTS) {
+    verifyAttempts.set(ip, prev);
+    return false;
+  }
+  prev.push(now);
+  verifyAttempts.set(ip, prev);
+  return true;
+}
+
+function sha256Buf(str: string): Buffer {
+  return crypto.createHash('sha256').update(str, 'utf8').digest();
+}
+
+function verifyAccessCode(submitted: string): boolean {
+  const envCode = cleanStr(process.env.BOOKINGS_ACCESS_CODE);
+  if (envCode) {
+    return crypto.timingSafeEqual(sha256Buf(submitted), sha256Buf(envCode));
+  }
+  if (claimedFallbackHash) {
+    const derived = crypto.scryptSync(submitted, claimedFallbackHash.salt, 64);
+    const stored = Buffer.from(claimedFallbackHash.hash, 'hex');
+    if (derived.length !== stored.length) return false;
+    return crypto.timingSafeEqual(derived, stored);
+  }
+  return false;
+}
+
+function issueAccessToken(): string {
+  const payload = JSON.stringify({
+    scope: 'bookings_admin',
+    exp: Date.now() + TOKEN_TTL_MS,
+    nonce: crypto.randomBytes(12).toString('hex'),
+  });
+  const encoded = Buffer.from(payload, 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', TOKEN_SIGNING_SECRET).update(encoded).digest('base64url');
+  return `${encoded}.${sig}`;
+}
+
+function verifyAccessToken(token: string): boolean {
+  if (!token || !token.includes('.')) return false;
+  const [encoded, sig] = token.split('.');
+  if (!encoded || !sig) return false;
+  const expectedSig = crypto.createHmac('sha256', TOKEN_SIGNING_SECRET).update(encoded).digest('base64url');
+  const sigBuf = Buffer.from(sig, 'utf8');
+  const expBuf = Buffer.from(expectedSig, 'utf8');
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    return parsed.scope === 'bookings_admin' && typeof parsed.exp === 'number' && parsed.exp > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+app.get('/api/bookings-access/status', (_req: Request, res: Response) => {
+  const envConfigured = Boolean(cleanStr(process.env.BOOKINGS_ACCESS_CODE));
+  res.json({
+    configured: envConfigured || Boolean(claimedFallbackHash),
+  });
+});
+
+app.post('/api/bookings-access/setup', (req: Request, res: Response) => {
+  if (cleanStr(process.env.BOOKINGS_ACCESS_CODE) || claimedFallbackHash) {
+    return res.status(403).json({ error: 'Access code is already configured.' });
+  }
+  const newCode = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+  if (newCode.length < 4 || newCode.length > 64) {
+    return res.status(400).json({ error: 'Code must be between 4 and 64 characters.' });
+  }
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(newCode, salt, 64).toString('hex');
+  claimedFallbackHash = { salt, hash };
+  return res.json({ ok: true, token: issueAccessToken() });
+});
+
+app.post('/api/bookings-access/verify', (req: Request, res: Response) => {
+  const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+  if (!checkVerifyRateLimit(clientIp)) {
+    return res.status(429).json({ ok: false, error: 'Demasiados intentos. Inténtalo en unos minutos.' });
+  }
+
+  const submitted = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+  if (!submitted) {
+    return res.status(400).json({ ok: false, error: 'Introduce el código de acceso.' });
+  }
+
+  if (!verifyAccessCode(submitted)) {
+    return res.status(401).json({ ok: false, error: 'Código incorrecto.' });
+  }
+
+  return res.json({ ok: true, token: issueAccessToken() });
+});
+
+app.get('/api/bookings-access/records', async (req: Request, res: Response) => {
+  const authHeader = req.get('authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  if (!verifyAccessToken(token)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const key = cleanStr(STRIPE_SECRET_KEY);
+  if (!key || key.length < 10 || key.includes('{{')) {
+    return res.json({ bookings: [] });
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.stripe.com/v1/checkout/sessions?status=complete&limit=100&created[gte]=${QUOTA_RESET_EPOCH}`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}`,
+          'Stripe-Version': '2025-03-31.basil',
+        },
+      }
+    );
+    const data = await response.json();
+    const bookings = [];
+    if (response.ok && Array.isArray(data.data)) {
+      for (const sess of data.data) {
+        if (sess.payment_status !== 'paid') continue;
+        const meta = sess.metadata || {};
+        const cust = sess.customer_details || {};
+        bookings.push({
+          id: `stripe_${sess.id}`,
+          code: meta.booking_code || `STRIPE-${String(sess.id).slice(-6).toUpperCase()}`,
+          fullName: meta.customer_name || cust.name || 'Familia Calvià',
+          phone: meta.phone || cust.phone || '+34 661 532 237',
+          email: cust.email || '',
+          dateKey: meta.date_key || '2026-12-20',
+          dateLabel: meta.day_label ? `${meta.day_label} · Visita Mágica de Santa y su Elfo` : 'Visita Mágica de Santa y su Elfo',
+          timeSlot: meta.time_slot || 'Franja seleccionada',
+          preferredTimeWindow: 'early_evening',
+          zone: meta.zone || cust.address?.city || 'Calvià',
+          address:
+            meta.address ||
+            [cust.address?.line1, cust.address?.line2, cust.address?.postal_code, cust.address?.city]
+              .filter(Boolean)
+              .join(', ') ||
+            'Confirmar por WhatsApp',
+          kidsInfo: meta.kids_info || 'Niños inscritos',
+          notes: meta.notes || 'Pago confirmado en Stripe',
+          packageId: meta.package_id || 'santa-elfo-20-22',
+          packageName: 'Visita Mágica de Santa y su Elfo',
+          price: sess.amount_total ? Math.round(sess.amount_total / 100) : Number(meta.amount_eur) || 79,
+          createdAt: sess.created ? new Date(sess.created * 1000).toISOString() : new Date().toISOString(),
+          isExpress: false,
+          status: 'confirmada',
+          routeOrder: 50,
+          paymentMethod: 'Stripe (Pagado)',
+        });
+      }
+    }
+    return res.json({ bookings });
+  } catch (err) {
+    console.warn('Error fetching protected Stripe bookings:', err);
+    return res.json({ bookings: [] });
   }
 });
 

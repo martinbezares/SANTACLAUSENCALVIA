@@ -23,12 +23,15 @@ export const MagicVoucherModal: React.FC<MagicVoucherModalProps> = ({
     window.print();
   };
 
+  const isBizum = Boolean(booking.paymentMethod?.toLowerCase().includes('bizum'));
+
   const whatsappConfirmUrl = (() => {
+    const payMethodText = booking.paymentMethod || 'Stripe';
     const text =
       language === 'es'
-        ? `🎅 ¡Hola! Acabo de realizar el pago de mi visita de Santa Claus.\n\n*Código:* ${booking.code}\n*Familia:* ${booking.fullName}\n*Teléfono:* ${booking.phone}\n*Fecha:* ${booking.dateLabel}\n*Franja:* ${booking.timeSlot}\n*Zona / Dirección:* ${booking.zone} · ${booking.address}\n*Niños:* ${booking.kidsInfo}\n*Notas / Regalos:* ${booking.notes}`
-        : `🎅 Hello! I just completed payment for our Santa Claus visit.\n\n*Code:* ${booking.code}\n*Family:* ${booking.fullName}\n*Phone:* ${booking.phone}\n*Date:* ${booking.dateLabel}\n*Window:* ${booking.timeSlot}\n*Zone / Address:* ${booking.zone} · ${booking.address}\n*Children:* ${booking.kidsInfo}\n*Notes / Gifts:* ${booking.notes}`;
-    return `https://wa.me/34652390240?text=${encodeURIComponent(text)}`;
+        ? `🎅 ¡Hola! Te envío los datos de mi visita de Santa Claus.\n\n*Código:* ${booking.code}\n*Familia:* ${booking.fullName}\n*Teléfono:* ${booking.phone}\n*Fecha:* ${booking.dateLabel}\n*Franja:* ${booking.timeSlot}\n*Zona / Dirección:* ${booking.zone} · ${booking.address}\n*Niños:* ${booking.kidsInfo}\n*Método de pago:* ${payMethodText}\n*Notas / Regalos:* ${booking.notes}`
+        : `🎅 Hello! Here are the details for our Santa Claus visit.\n\n*Code:* ${booking.code}\n*Family:* ${booking.fullName}\n*Phone:* ${booking.phone}\n*Date:* ${booking.dateLabel}\n*Window:* ${booking.timeSlot}\n*Zone / Address:* ${booking.zone} · ${booking.address}\n*Children:* ${booking.kidsInfo}\n*Payment Method:* ${payMethodText}\n*Notes / Gifts:* ${booking.notes}`;
+    return `https://wa.me/34661532237?text=${encodeURIComponent(text)}`;
   })();
 
   return (
@@ -156,17 +159,23 @@ export const MagicVoucherModal: React.FC<MagicVoucherModalProps> = ({
 
               <div className="flex justify-between items-center gap-2">
                 <span className="font-bold text-stone-600 shrink-0">
-                  {language === 'es' ? 'Pago en Stripe:' : 'Stripe Payment:'}
+                  {language === 'es' ? 'Forma de Pago:' : 'Payment Method:'}
                 </span>
-                <span className="font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded text-[11px] border border-emerald-300">
-                  {isPaid
-                    ? language === 'es'
-                      ? '✓ PAGADO Y CONFIRMADO (Stripe)'
-                      : '✓ PAID & CONFIRMED (Stripe)'
-                    : language === 'es'
-                    ? 'Stripe / Google Pay / Tarjeta'
-                    : 'Stripe / Google Pay / Card'}
-                </span>
+                {isBizum ? (
+                  <span className="font-bold text-cyan-900 bg-cyan-100/90 px-2.5 py-0.5 rounded text-[11px] border border-cyan-300 text-right">
+                    Bizum (+34 661 532 237) · {language === 'es' ? `Concepto: ${booking.code}` : `Ref: ${booking.code}`}
+                  </span>
+                ) : (
+                  <span className="font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded text-[11px] border border-emerald-300">
+                    {isPaid
+                      ? language === 'es'
+                        ? '✓ PAGADO Y CONFIRMADO (Stripe)'
+                        : '✓ PAID & CONFIRMED (Stripe)'
+                      : language === 'es'
+                      ? 'Stripe / Google Pay / Tarjeta'
+                      : 'Stripe / Google Pay / Card'}
+                  </span>
+                )}
               </div>
 
               <p className="text-[10px] text-stone-500 italic mt-2 text-center pt-1">

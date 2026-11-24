@@ -254,6 +254,9 @@ export const MAX_VISITS_PER_DAY = 7;
 export const FULL_SCHEDULE_MSG_DEC24_ES = 'Lo sentimos mucho Santa ya tiene la agenda llena este año, nos vemos el año que viene, FELIZ NAVIDAD!!!';
 export const FULL_SCHEDULE_MSG_DEC24_EN = "We are very sorry, Santa's schedule is completely full this year, see you next year, MERRY CHRISTMAS!!!";
 
+export const BIZUM_PHONE_DISPLAY = '+34 661 532 237';
+export const BIZUM_PHONE_RAW = '661532237';
+
 export const FULL_SCHEDULE_MSG_OTHER_ES = 'Santa tiene la agenda llena este día';
 export const FULL_SCHEDULE_MSG_OTHER_EN = "Santa's schedule is full for this day";
 
@@ -576,8 +579,8 @@ export const FAQS: FaqItem[] = [
   {
     question: '¿Qué métodos de pago están habilitados?',
     questionEn: 'Which payment methods are enabled?',
-    answer: 'El único método de pago aceptado y habilitado en la plataforma es G-Pay (Google Pay). Permite realizar el pago de tu visita de forma inmediata, 100% segura y con total comodidad desde tu móvil o navegador con tu tarjeta vinculada.',
-    answerEn: 'The only payment method accepted and enabled on this platform is G-Pay (Google Pay). It allows instant, 100% secure, and seamless payment for your visit directly from your phone or browser using your linked card.',
+    answer: 'Puedes abonar tu visita de dos formas cómodas y seguras: online mediante la pasarela oficial de Stripe (Tarjeta de crédito/débito, Google Pay y Apple Pay) o mediante Bizum directo al teléfono de la web (+34 661 532 237) indicando tu código de reserva o nombre de familia en el concepto.',
+    answerEn: 'You can pay for your visit in two convenient, secure ways: online through our official Stripe checkout (credit/debit card, Google Pay, and Apple Pay) or via Bizum to the phone number listed on our website (+34 661 532 237), including your booking code or family name in the payment reference.',
   },
 ];
 
